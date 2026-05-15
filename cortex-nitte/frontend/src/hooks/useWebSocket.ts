@@ -1,69 +1,92 @@
-import { useEffect, useRef, useCallback } from 'react'
-import { useCortexStore, GraphState, Prediction, ActionPlan } from '../store/cortex'
-import { WS_URL } from '../lib/api'
+import { useEffect, useRef } from 'react'
+import useCortexStore from '../store/cortex'
+import { WebSocketMessage } from '../types'
 
-const RECONNECT_DELAY_MS = 3000
+const MAX_RECONNECT_DELAY = 10000
 
 export function useWebSocket() {
-  const wsRef = useRef<WebSocket | null>(null)
-  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const shouldReconnectRef = useRef(true)
-  const { setGraph, setPrediction, addActionPlan, setDryRun, setConnected, setWsError } =
-    useCortexStore()
-
-  const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return
-
-    try {
-      const ws = new WebSocket(WS_URL)
-      wsRef.current = ws
-
-      ws.onopen = () => {
-        setConnected(true)
-        setWsError(null)
-      }
-
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data as string)
-
-          // Both "snapshot" (on connect) and "update" (each tick) carry the same fields
-          if (msg.type === 'snapshot' || msg.type === 'update') {
-            if (msg.graph) setGraph(msg.graph as GraphState)
-            if (msg.prediction) setPrediction(msg.prediction as Prediction)
-            if (msg.action_plan) addActionPlan(msg.action_plan as ActionPlan)
-            if (typeof msg.dry_run === 'boolean') setDryRun(msg.dry_run)
-          } else if (msg.type === 'error') {
-            setWsError(msg.message ?? 'Backend error')
-          }
-        } catch (e) {
-          console.error('WS parse error', e)
-        }
-      }
-
-      ws.onclose = () => {
-        setConnected(false)
-        if (shouldReconnectRef.current) {
-          reconnectRef.current = setTimeout(connect, RECONNECT_DELAY_MS)
-        }
-      }
-
-      ws.onerror = () => {
-        setWsError('WebSocket connection failed')
-      }
-    } catch (e) {
-      console.error('WS connection error', e)
-      reconnectRef.current = setTimeout(connect, RECONNECT_DELAY_MS)
-    }
-  }, [setGraph, setPrediction, addActionPlan, setDryRun, setConnected, setWsError])
+  const setWebSocketMessage = useCortexStore(
+    (state) => state.setWebSocketMessage
+  )
+  const setConnectionStatus = useCortexStore(
+    (state) => state.setConnectionStatus
+  )
+  const graph = useCortexStore((state) => state.graph)
+  const prediction = useCortexStore((state) => state.prediction)
+  const activeIncidents = useCortexStore((state) => state.activeIncidents)
+  const memoryPulse = useCortexStore((state) => state.memoryPulse)
+  const connectionStatus = useCortexStore((state) => state.connectionStatus)
+  const reconnectAttempt = useRef(0)
+  const reconnectTimeout = useRef<number | null>(null)
 
   useEffect(() => {
-    shouldReconnectRef.current = true
-    connect()
-    return () => {
-      shouldReconnectRef.current = false
-      if (reconnectRef.current) clearTimeout(reconnectRef.current)
-      wsRef.current?.close()
+    let socket: WebSocket | null = null
+    let isMounted = true
+
+    const connect = () => {
+      if (!isMounted) {
+        return
+      }
+
+      setConnectionStatus('connecting')
+      socket = new WebSocket(import.meta.env.VITE_WS_URL)
+
+      socket.onopen = () => {
+        reconnectAttempt.current = 0
+        setConnectionStatus('open')
+      }
+
+      socket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data) as WebSocketMessage
+          setWebSocketMessage(payload)
+        } catch (error) {
+          setWebSocketMessage({
+            type: 'error',
+            message: 'Malformed WebSocket payload',
+          })
+          setConnectionStatus('error')
+        }
+      }
+
+      socket.onerror = () => {
+        setConnectionStatus('error')
+      }
+
+      socket.onclose = () => {
+        setConnectionStatus('closed')
+        if (!isMounted) {
+          return
+        }
+
+        const attempt = reconnectAttempt.current
+        const delay = Math.min(800 * 2 ** attempt, MAX_RECONNECT_DELAY)
+        reconnectAttempt.current = attempt + 1
+
+        reconnectTimeout.current = window.setTimeout(() => {
+          connect()
+        }, delay)
+      }
     }
-  }, [connect])
+
+    connect()
+
+    return () => {
+      isMounted = false
+      if (socket) {
+        socket.close()
+      }
+      if (reconnectTimeout.current) {
+        window.clearTimeout(reconnectTimeout.current)
+      }
+    }
+  }, [setConnectionStatus, setWebSocketMessage])
+
+  return {
+    graph,
+    prediction,
+    activeIncidents,
+    memoryPulse,
+    connectionStatus,
+  }
 }

@@ -4,17 +4,20 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', '"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['Manrope', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['"Space Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       colors: {
-        surface: '#ffffff',
-        bg: '#f0f4ff',
-        border: '#dbe2f0',
-        primary: { DEFAULT: '#3b5bdb', light: '#e8edff', dark: '#2f4ac7' },
-        muted: '#55627c',
-        healthy: { DEFAULT: '#10b981', bg: '#e8f8ef', text: '#16653d' },
-        degraded: { DEFAULT: '#f59e0b', bg: '#fff3df', text: '#7b4a00' },
-        critical: { DEFAULT: '#ef4444', bg: '#ffe6e6', text: '#8c1d1d' },
+        ink: '#0b1220',
+        slate: '#3c4861',
+        haze: '#e7ecf5',
+        sand: '#f6f4ee',
+        ocean: '#1f7a8c',
+        ember: '#e07a5f',
+        moss: '#2f7d62',
+      },
+      boxShadow: {
+        glow: '0 18px 40px rgba(31, 122, 140, 0.18)',
       },
     },
   },
