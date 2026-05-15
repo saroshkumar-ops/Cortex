@@ -26,18 +26,18 @@ from collections import OrderedDict
 from typing import Optional
 
 
-XAI_API_URL = os.environ.get("XAI_API_URL", "https://api.x.ai/v1/chat/completions")
-MODEL = os.environ.get("XAI_MODEL", "grok-2-latest")
+GROQ_API_URL = os.environ.get("GROQ_API_URL", "https://api.groq.com/openai/v1/chat/completions")
+MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 
 def _llm_call(system: str, user: str, max_tokens: int, timeout: float) -> Optional[str]:
-    """Single blocking LLM call against the xAI Grok API.
+    """Single blocking LLM call against the Groq API.
 
     Uses the OpenAI-compatible chat-completions schema. Returns the text
     content of the first choice, or None on any failure (missing key,
     timeout, non-200, malformed body).
     """
-    api_key = os.environ.get("XAI_API_KEY")
+    api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
         return None
 
@@ -51,7 +51,7 @@ def _llm_call(system: str, user: str, max_tokens: int, timeout: float) -> Option
     }).encode()
 
     req = urllib.request.Request(
-        XAI_API_URL,
+        GROQ_API_URL,
         data=payload,
         headers={
             "Content-Type": "application/json",
