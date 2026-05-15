@@ -33,10 +33,16 @@ class IncidentSignal(TypedDict, total=False):
 
 
 class CausalEdge(TypedDict, total=False):
+    # Bench-native keys.
     cause_event_id: str
     effect_event_id: str
+    # Aliases for external consumers expecting shorter field names.
+    cause_id: str
+    effect_id: str
     evidence: str
     confidence: float
+    # Explicit temporal payload for temporal reasoning / judge inspection.
+    timestamps: dict[str, str]
 
 
 class IncidentMatch(TypedDict, total=False):

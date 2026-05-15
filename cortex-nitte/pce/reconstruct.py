@@ -156,6 +156,9 @@ def _build_explain(engine, signal, signal_event_id, canonical_svc, chain, matche
             )
         if clauses:
             parts.append("Reconstructed causal chain: " + "; ".join(clauses) + ".")
+            graph = _render_chain_graph(engine, chain)
+            if graph:
+                parts.append("Causal graph: " + graph + ".")
         else:
             parts.append("No causal chain reconstructed from the available window.")
     else:
@@ -184,6 +187,49 @@ def _build_explain(engine, signal, signal_event_id, canonical_svc, chain, matche
         )
 
     return " ".join(parts)
+
+
+def _render_chain_graph(engine, chain) -> str:
+    """Render a compact explicit causal graph summary for human inspection."""
+    if not chain:
+        return ""
+
+    nodes: list[str] = []
+    for idx, edge in enumerate(chain):
+        try:
+            cause_evt = engine.log.get(int(edge["cause_event_id"]))
+            effect_evt = engine.log.get(int(edge["effect_event_id"]))
+        except (KeyError, ValueError, TypeError):
+            continue
+
+        cause_label = _label_event(cause_evt)
+        effect_label = _label_event(effect_evt)
+        if idx == 0:
+            nodes.append(cause_label)
+        nodes.append(effect_label)
+    return " -> ".join(nodes)
+
+
+def _label_event(event: dict) -> str:
+    """Short node labels for graph-style explainability."""
+    kind = event.get("kind", "event")
+    if kind == "deploy":
+        return "deploy"
+    if kind == "metric":
+        name = str(event.get("name") or "metric").lower()
+        if "latency" in name:
+            return "latency spike"
+        return name
+    if kind == "trace":
+        return "trace slowdown"
+    if kind == "log":
+        msg = str(event.get("msg") or "").lower()
+        if "timeout" in msg:
+            return "checkout timeout"
+        return "error log"
+    if kind == "incident_signal":
+        return "incident signal"
+    return kind
 
 
 def _describe(event: dict) -> str:

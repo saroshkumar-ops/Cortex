@@ -10,9 +10,13 @@ import os
 import sys
 from typing import Iterable, Literal
 
-# Make the repo-root `pce/` package importable from inside bench-p02-context/
+# Make the repo-root `pce/` package importable from inside bench-p02-context/.
+# Prefer the current repository root (two levels up); keep a fallback for
+# older local layouts where `pce/` might live one level higher.
 _THIS = os.path.dirname(os.path.abspath(__file__))
-_REPO_ROOT = os.path.abspath(os.path.join(_THIS, "..", "..", ".."))
+_REPO_ROOT = os.path.abspath(os.path.join(_THIS, "..", ".."))
+if not os.path.isdir(os.path.join(_REPO_ROOT, "pce")):
+    _REPO_ROOT = os.path.abspath(os.path.join(_THIS, "..", "..", ".."))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 

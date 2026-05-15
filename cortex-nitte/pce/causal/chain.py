@@ -147,14 +147,24 @@ def build_chain(
         if best_cause < 0 or best_score < min_edge_confidence:
             break
 
-        # Stringify event ids and render a human-readable evidence summary —
-        # matches the bench schema's CausalEdge shape (str/str/str/float).
+        cause_event = engine.log.get(best_cause)
+        effect_event = engine.log.get(current_effect)
+        cause_ts = str(cause_event.get("ts", ""))
+        effect_ts = str(effect_event.get("ts", ""))
+
+        # Stringify event ids and render a human-readable evidence summary.
         evidence_str = ", ".join(best_reasons) if best_reasons else f"#{best_cause}->#{current_effect}"
         edges_backward.append({
             "cause_event_id": str(best_cause),
             "effect_event_id": str(current_effect),
+            "cause_id": str(best_cause),
+            "effect_id": str(current_effect),
             "evidence": evidence_str,
             "confidence": round(best_score, 4),
+            "timestamps": {
+                "cause_ts": cause_ts,
+                "effect_ts": effect_ts,
+            },
         })
         used.add(best_cause)
         current_effect = best_cause
