@@ -48,7 +48,13 @@ def reconstruct(engine, signal: IncidentSignal, mode: str = "fast") -> Context:
     )
 
     top_k = 5 if mode == "fast" else 10
-    matches = engine.retriever.find_similar(engine, query_episode, mode=mode, top_k=top_k)
+    # Pull a wider candidate pool when the LLM reranker is active so it has
+    # something to reorder. Otherwise stay at top_k for cost parity.
+    retrieval_k = max(top_k, 10) if getattr(engine, "llm_reranker", None) is not None else top_k
+    matches = engine.retriever.find_similar(engine, query_episode, mode=mode, top_k=retrieval_k)
+
+    # Optional LLM reranking pass. Falls back to LSH order on any failure.
+    matches = _maybe_llm_rerank(engine, signal, signal_event_id, window_ids, matches, top_k)
 
     # Record matches for the feedback loop so a later remediation can grade them.
     if engine.learning is not None:
@@ -85,10 +91,79 @@ def reconstruct(engine, signal: IncidentSignal, mode: str = "fast") -> Context:
     #    chain root-cause confidence, and remediation confidence.
     ctx["confidence"] = round(_overall_confidence(matches, chain, suggested), 4)
 
-    # 7) Explain narrative
-    ctx["explain"] = _build_explain(engine, signal, signal_event_id, canonical_svc, chain, matches, suggested)
+    # 7) Explain narrative — LLM if available, deterministic fallback otherwise.
+    ctx["explain"] = _maybe_llm_explain(
+        engine, signal, ctx["causal_chain"], ctx["similar_past_incidents"],
+        ctx["suggested_remediations"], ctx["confidence"],
+    ) or _build_explain(engine, signal, signal_event_id, canonical_svc, chain, matches, suggested)
 
     return ctx
+
+
+def _maybe_llm_rerank(engine, signal, signal_event_id, window_ids, matches, top_k):
+    """Wrap matches in dicts, summarize the current signal window, ask the
+    LLM reranker for a top_k ordering. Returns the original matches on any
+    failure or when the LLM layer is disabled."""
+    if not matches:
+        return matches
+    reranker = getattr(engine, "llm_reranker", None)
+    summarizer = getattr(engine, "llm_summarizer", None)
+    if reranker is None:
+        return matches[:top_k]
+
+    try:
+        current_summary = ""
+        if summarizer is not None and window_ids:
+            window_events = [engine.log.get(eid) for eid in window_ids[:25] if engine.log.get(eid)]
+            svc = signal.get("service") or signal.get("trigger") or ""
+            canonical = engine.identity.canonical(svc, signal.get("ts")) if svc else ""
+            current_summary = summarizer.summarize(window_events, canonical or "")
+            if current_summary:
+                engine.llm_calls["summarize"] += 1
+
+        candidates = [
+            {"incident_id": mid, "similarity": float(sim), "summary": str(rationale or "")}
+            for mid, sim, rationale in matches
+        ]
+        reranked = reranker.rerank(
+            current_signal_summary=current_summary,
+            current_tokens=set(),
+            candidates=candidates,
+            top_k=top_k,
+        )
+        if not reranked:
+            return matches[:top_k]
+        engine.llm_calls["rerank"] += 1
+        out = []
+        for c in reranked:
+            mid = c.get("incident_id")
+            sim = float(c.get("similarity", 0.0))
+            rationale = c.get("rationale") or c.get("summary") or ""
+            out.append((mid, sim, rationale))
+        return out
+    except Exception:
+        return matches[:top_k]
+
+
+def _maybe_llm_explain(engine, signal, chain, similar_incidents, suggested, confidence):
+    """Call the LLM explainer. Returns "" on any failure so the deterministic
+    fallback narrative is used instead."""
+    explainer = getattr(engine, "llm_explainer", None)
+    if explainer is None:
+        return ""
+    try:
+        out = explainer.explain(
+            signal=signal,
+            causal_chain=chain,
+            similar_incidents=similar_incidents,
+            suggested_remediations=suggested,
+            confidence=float(confidence),
+        )
+        if out:
+            engine.llm_calls["explain"] += 1
+        return out or ""
+    except Exception:
+        return ""
 
 
 # ----- helpers -----

@@ -56,6 +56,7 @@ def _llm_call(system: str, user: str, max_tokens: int, timeout: float) -> Option
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
+            "User-Agent": "cortex-pce/0.1",
         },
         method="POST",
     )

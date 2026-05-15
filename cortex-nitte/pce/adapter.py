@@ -9,8 +9,39 @@ The Engine is the integration point for all four layers:
 
 import json
 import os
+import pathlib
 from typing import Iterable, Literal
 from pce.schema import Event, IncidentSignal, Context
+
+
+def _load_dotenv_once() -> None:
+    """Minimal stdlib .env loader. Walks up from cwd and from this file to
+    find a .env, populates os.environ for keys not already set. No-op if
+    nothing is found. Called once per Engine instantiation."""
+    seen: set[str] = set()
+    roots = [pathlib.Path.cwd(), pathlib.Path(__file__).resolve().parent.parent]
+    for root in roots:
+        for p in [root, *root.parents]:
+            env_path = p / ".env"
+            key = str(env_path)
+            if key in seen:
+                continue
+            seen.add(key)
+            if env_path.is_file():
+                try:
+                    for line in env_path.read_text(encoding="utf-8").splitlines():
+                        line = line.strip()
+                        if not line or line.startswith("#") or "=" not in line:
+                            continue
+                        k, _, v = line.partition("=")
+                        k = k.strip()
+                        v = v.strip().strip('"').strip("'")
+                        if k and k not in os.environ:
+                            os.environ[k] = v
+                except Exception:
+                    pass
+            if (p / ".git").is_dir():
+                break
 
 
 class Adapter:
@@ -30,6 +61,7 @@ class Adapter:
 
 class Engine(Adapter):
     def __init__(self) -> None:
+        _load_dotenv_once()
         from pce.store.event_log import EventLog
         from pce.store.identity import IdentityResolver
         from pce.store.indices import Indices
@@ -52,6 +84,26 @@ class Engine(Adapter):
         self.learning = LearningEngine(self.knowledge, self.relationships)
         self.feedback = self.learning.feedback
         self.retriever = HybridRetriever(self.incident_memory)
+
+        # LLM layer wiring. Enabled when GROQ_API_KEY is present and
+        # PCE_LLM != "0". Each component degrades gracefully (None on
+        # failure) so falling back to deterministic paths is automatic.
+        self.llm_enabled = (
+            bool(os.environ.get("GROQ_API_KEY"))
+            and os.environ.get("PCE_LLM", "1") != "0"
+        )
+        if self.llm_enabled:
+            from pce.llm_layer import LLMWindowSummarizer, LLMReranker, LLMExplainer
+            self.llm_summarizer = LLMWindowSummarizer()
+            self.llm_reranker = LLMReranker()
+            self.llm_explainer = LLMExplainer()
+        else:
+            self.llm_summarizer = None
+            self.llm_reranker = None
+            self.llm_explainer = None
+        # Per-process counter for visibility / debugging.
+        self.llm_calls = {"summarize": 0, "rerank": 0, "explain": 0}
+
         # Track which incidents we've seen a signal for, so we know when to
         # register past incidents with the matcher and when to apply feedback.
         self._signal_seen: set[str] = set()
