@@ -4,16 +4,12 @@ Builds a chain *backwards* from the incident signal: for each effect, find
 the best plausible cause earlier in the window, then make that cause the
 next effect. Stops when no plausible cause is found or `max_depth` reached.
 
-Confidence per edge combines:
-  - temporal proximity (closer in time = higher)
-  - kind affinity   (deploy can plausibly cause metric breach; the reverse cannot)
-  - link bonuses   (shared trace_id or shared canonical service)
-
-The bench grades edges on (a) temporal correctness (cause_ts < effect_ts —
-hard constraint) and (b) reasonable confidence calibration.
+Confidence per edge is probabilistic, combining temporal proximity, causal
+affinity, topology proximity, and historical confirmation.
 """
 
 from pce.schema import CausalEdge
+from pce.causal.probabilistic import score_edge as probabilistic_score
 
 
 # Plausibility that an event of kind `cause` causes an event of kind `effect`.
@@ -36,72 +32,8 @@ KIND_AFFINITY: dict[tuple[str, str], float] = {
 }
 
 
-def _temporal_score(dt: float) -> float:
-    """Map cause→effect time delta (seconds) to a 0..1 score.
-
-    Sweet spot at 1–60s; decays past 5 minutes.
-    """
-    if dt < 0:
-        return 0.0  # cause must precede effect — hard constraint
-    if dt <= 1:
-        return 0.85   # very simultaneous, mildly suspicious
-    if dt <= 60:
-        return 1.0
-    if dt <= 180:
-        return 0.75
-    if dt <= 600:
-        return 0.45
-    return 0.15
-
-
-def _link_bonus(engine, cause_id: int, effect_id: int) -> tuple[float, list[str]]:
-    """Bonus when cause/effect share a trace_id or canonical service.
-
-    Returns (bonus, reasons).
-    """
-    cause = engine.log.get(cause_id)
-    effect = engine.log.get(effect_id)
-    bonus = 0.0
-    reasons: list[str] = []
-
-    c_trace = cause.get("trace_id")
-    e_trace = effect.get("trace_id")
-    if c_trace and c_trace == e_trace:
-        bonus += 0.20
-        reasons.append("shared_trace")
-
-    c_svc_raw = cause.get("service") or cause.get("target")
-    e_svc_raw = effect.get("service") or effect.get("target")
-    if c_svc_raw and e_svc_raw:
-        c_canonical = engine.identity.canonical(c_svc_raw, cause.get("ts"))
-        e_canonical = engine.identity.canonical(e_svc_raw, effect.get("ts"))
-        if c_canonical and c_canonical == e_canonical:
-            bonus += 0.15
-            reasons.append("same_service")
-
-    return bonus, reasons
-
-
 def _score_edge(engine, cause_id: int, effect_id: int) -> tuple[float, list[str]]:
-    """Total confidence + reasons for a candidate edge."""
-    cause = engine.log.get(cause_id)
-    effect = engine.log.get(effect_id)
-
-    c_kind = cause.get("kind", "")
-    e_kind = effect.get("kind", "")
-    affinity = KIND_AFFINITY.get((c_kind, e_kind), 0.0)
-    if affinity == 0.0:
-        return 0.0, []
-
-    dt = engine.log.ts_of(effect_id) - engine.log.ts_of(cause_id)
-    temporal = _temporal_score(dt)
-    if temporal == 0.0:
-        return 0.0, []
-
-    bonus, reasons = _link_bonus(engine, cause_id, effect_id)
-    score = (affinity * 0.55) + (temporal * 0.30) + bonus
-    score = max(0.0, min(1.0, score))
-    return score, [f"{c_kind}->{e_kind}", f"dt={dt:.1f}s", *reasons]
+    return probabilistic_score(engine, cause_id, effect_id)
 
 
 def build_chain(
@@ -110,6 +42,7 @@ def build_chain(
     window_ids: list[int],
     max_depth: int = 5,
     min_edge_confidence: float = 0.30,
+    mode: str = "fast",
 ) -> list[CausalEdge]:
     """Walk backwards from the signal, emitting (cause -> effect) edges.
 
@@ -125,6 +58,8 @@ def build_chain(
     edges_backward: list[CausalEdge] = []
     used: set[int] = {signal_event_id}
     current_effect = signal_event_id
+
+    min_conf = min_edge_confidence if mode == "fast" else min_edge_confidence * 0.85
 
     for _ in range(max_depth):
         best_score = -1.0
@@ -144,7 +79,7 @@ def build_chain(
                 best_cause = cand_id
                 best_reasons = reasons
 
-        if best_cause < 0 or best_score < min_edge_confidence:
+        if best_cause < 0 or best_score < min_conf:
             break
 
         cause_event = engine.log.get(best_cause)

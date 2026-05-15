@@ -120,6 +120,25 @@ class Matcher:
         scored.sort(key=lambda x: x[1], reverse=True)
         return scored[:top_k]
 
+    def candidate_ids(self, engine, signal_incident_id: str) -> set[str]:
+        """Return unscored LSH candidates for an incident."""
+        self.register(engine, signal_incident_id)
+        query = self._records[signal_incident_id]
+        if not query.tokens:
+            return set()
+
+        candidates: set[str] = set()
+        for b in range(NUM_BANDS):
+            key = query.signature[b * ROWS_PER_BAND:(b + 1) * ROWS_PER_BAND]
+            bucket = self._lsh[b].get(key)
+            if bucket:
+                candidates.update(bucket)
+        candidates.discard(signal_incident_id)
+        return candidates
+
+    def pair_weight(self, a: str, b: str) -> float:
+        return self._pair_weight(a, b)
+
     # ---- evolution ----
 
     def reinforce(self, query_id: str, match_id: str, success: bool, magnitude: float = 0.05) -> None:

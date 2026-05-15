@@ -71,31 +71,31 @@ def extract_signal_service(signal: Event) -> str | None:
         return None
 
 
-def _time_bucket(dt: float) -> str | None:
+def _time_bucket(dt: float, window_before_s: float, window_after_s: float) -> str | None:
     """Map a signed delta-seconds-from-signal to a fine bucket label."""
-    if dt > WINDOW_AFTER_S:
+    if dt > window_after_s:
         return None
     if dt > 0:
         return "post"
     abs_dt = -dt
-    if abs_dt > WINDOW_BEFORE_S:
+    if abs_dt > window_before_s:
         return None
     for thresh, label in _TIME_BUCKETS_BEFORE:
         if abs_dt <= thresh:
             return label
-    return "900-2400s"  # fallback within WINDOW_BEFORE_S
+    return "900-2400s"  # fallback within window_before_s
 
 
-def _coarse_bucket(dt: float) -> str | None:
+def _coarse_bucket(dt: float, window_before_s: float, window_after_s: float) -> str | None:
     """Map a delta to a coarse bucket. Used in parallel with the fine bucket
     so two incidents in the same family still share *some* tokens even when
     their timing differs (one fires 90s after deploy, another 600s after)."""
-    if dt > WINDOW_AFTER_S:
+    if dt > window_after_s:
         return None
     if dt > 0:
         return "post"
     abs_dt = -dt
-    if abs_dt > WINDOW_BEFORE_S:
+    if abs_dt > window_before_s:
         return None
     return "pre"
 
@@ -114,7 +114,14 @@ def _metric_tier(name: str, value: float) -> str:
     return "any"
 
 
-def build_tokens(engine, incident_id: str) -> tuple[set[str], dict]:
+def build_tokens(
+    engine,
+    incident_id: str,
+    window_ids: list[int] | None = None,
+    signal_event_id: int | None = None,
+    window_before_s: float = WINDOW_BEFORE_S,
+    window_after_s: float = WINDOW_AFTER_S,
+) -> tuple[set[str], dict]:
     """Build the role-token multiset for an incident.
 
     Returns (tokens, meta) where meta carries:
@@ -123,21 +130,23 @@ def build_tokens(engine, incident_id: str) -> tuple[set[str], dict]:
       - canonical_service (of the signal, or None)
       - window_event_ids (list of event ids included in the window)
     """
-    inc_ids = engine.indices.ids_for_incident(incident_id)
-    if not inc_ids:
-        return set(), {"signal_event_id": None, "canonical_service": None}
-
-    # First incident event is the signal; later ones are remediation(s).
-    signal_event_id = inc_ids[0]
+    if signal_event_id is None:
+        inc_ids = engine.indices.ids_for_incident(incident_id)
+        if not inc_ids:
+            return set(), {"signal_event_id": None, "canonical_service": None}
+        # First incident event is the signal; later ones are remediation(s).
+        signal_event_id = inc_ids[0]
     signal = engine.log.get(signal_event_id)
     signal_ts = engine.log.ts_of(signal_event_id)
 
     raw_svc = extract_signal_service(signal)
-    canonical_svc = engine.identity.canonical(raw_svc, signal.get("ts")) if raw_svc else None
+    canonical_svc_id = engine.identity.canonical_id(raw_svc, signal.get("ts")) if raw_svc else None
+    canonical_svc_name = engine.identity.canonical(raw_svc, None) if raw_svc else None
 
-    t_start = signal_ts - WINDOW_BEFORE_S
-    t_end = signal_ts + WINDOW_AFTER_S
-    window_ids = engine.indices.ids_in_window(t_start, t_end)
+    if window_ids is None:
+        t_start = signal_ts - window_before_s
+        t_end = signal_ts + window_after_s
+        window_ids = engine.indices.ids_in_window(t_start, t_end)
 
     tokens: set[str] = set()
     included: list[int] = []
@@ -149,15 +158,15 @@ def build_tokens(engine, incident_id: str) -> tuple[set[str], dict]:
             continue  # don't tokenize the signal itself; it's the anchor
 
         dt = engine.log.ts_of(eid) - signal_ts
-        bucket = _time_bucket(dt)
-        coarse = _coarse_bucket(dt)
+        bucket = _time_bucket(dt, window_before_s, window_after_s)
+        coarse = _coarse_bucket(dt, window_before_s, window_after_s)
         if bucket is None and coarse is None:
             continue
 
         # Resolve every service mention to its canonical name, then to a role.
         ev_svc_raw = ev.get("service") or ev.get("target")
-        ev_canonical = engine.identity.canonical(ev_svc_raw, ev.get("ts")) if ev_svc_raw else None
-        role = _role(ev_canonical, canonical_svc)
+        ev_canonical_id = engine.identity.canonical_id(ev_svc_raw, ev.get("ts")) if ev_svc_raw else None
+        role = _role(ev_canonical_id, canonical_svc_id)
 
         # Emit each token at two time scales: fine bucket and coarse
         # ("pre"/"post"). Same-family incidents that fire at different latencies
@@ -197,8 +206,8 @@ def build_tokens(engine, incident_id: str) -> tuple[set[str], dict]:
             if lvl == "error":
                 msg = ev.get("msg") or ""
                 for name_match in re.findall(r"[a-z][a-z0-9\-]+(?:-svc|-api|-service)", msg):
-                    other_canonical = engine.identity.canonical(name_match, ev.get("ts"))
-                    if other_canonical and other_canonical != ev_canonical:
+                    other_canonical_id = engine.identity.canonical_id(name_match, ev.get("ts"))
+                    if other_canonical_id and other_canonical_id != ev_canonical_id:
                         for b in time_labels:
                             tokens.add(f"cross_service_error:{role}:{b}")
                         break
@@ -215,8 +224,8 @@ def build_tokens(engine, incident_id: str) -> tuple[set[str], dict]:
                 for b in time_labels:
                     tokens.add(f"trace:fanout={fanout_bucket}:{b}")
             for sp in spans:
-                sp_canonical = engine.identity.canonical(sp.get("svc"), ev.get("ts"))
-                if sp_canonical == canonical_svc and canonical_svc:
+                sp_canonical_id = engine.identity.canonical_id(sp.get("svc"), ev.get("ts"))
+                if sp_canonical_id == canonical_svc_id and canonical_svc_id is not None:
                     for b in time_labels:
                         tokens.add(f"trace_touches_self:{b}")
                     break
@@ -232,15 +241,16 @@ def build_tokens(engine, incident_id: str) -> tuple[set[str], dict]:
     return tokens, {
         "signal_event_id": signal_event_id,
         "signal_ts": signal_ts,
-        "canonical_service": canonical_svc,
+        "canonical_service": canonical_svc_name,
+        "canonical_service_id": canonical_svc_id,
         "window_event_ids": included,
     }
 
 
-def _role(event_canonical: str | None, signal_canonical: str | None) -> str:
-    if not event_canonical or not signal_canonical:
+def _role(event_canonical_id: int | None, signal_canonical_id: int | None) -> str:
+    if event_canonical_id is None or signal_canonical_id is None:
         return "unknown"
-    return "self" if event_canonical == signal_canonical else "peer"
+    return "self" if event_canonical_id == signal_canonical_id else "peer"
 
 
 def _metric_family(name: str) -> str:

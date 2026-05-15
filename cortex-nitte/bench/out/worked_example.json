@@ -3,15 +3,15 @@
   "mode": "fast",
   "event_count": 7,
   "signal_count": 1,
-  "ingest_ms": 1.606,
-  "reconstruct_total_ms": 0.579,
-  "reconstruct_avg_ms": 0.579,
+  "ingest_ms": 2.628,
+  "reconstruct_total_ms": 5.393,
+  "reconstruct_avg_ms": 5.393,
   "reconstructions": [
     {
       "incident_id": "INC-714",
       "trigger": "alert:checkout-api/error-rate>5%",
       "ts": "2026-05-10T14:32:11Z",
-      "elapsed_ms": 0.579,
+      "elapsed_ms": 5.393,
       "context": {
         "related_events": [
           {

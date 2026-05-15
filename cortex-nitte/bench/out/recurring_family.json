@@ -3,15 +3,15 @@
   "mode": "fast",
   "event_count": 24,
   "signal_count": 4,
-  "ingest_ms": 4.17,
-  "reconstruct_total_ms": 2.432,
-  "reconstruct_avg_ms": 0.608,
+  "ingest_ms": 6.381,
+  "reconstruct_total_ms": 3.812,
+  "reconstruct_avg_ms": 0.953,
   "reconstructions": [
     {
       "incident_id": "INC-501",
       "trigger": "alert:checkout-api/error-rate>5%",
       "ts": "2026-04-01T10:02:00Z",
-      "elapsed_ms": 0.643,
+      "elapsed_ms": 1.134,
       "context": {
         "related_events": [
           {
@@ -92,12 +92,12 @@
         ],
         "similar_past_incidents": [
           {
-            "incident_id": "INC-642",
+            "incident_id": "INC-588",
             "similarity": 1.0,
             "rationale": "shared behavior: deploy_versioned:peer:pre, deploy_versioned:peer:30-180s, deploy:peer:pre, deploy:peer:30-180s, cross_service_error:self:pre"
           },
           {
-            "incident_id": "INC-588",
+            "incident_id": "INC-642",
             "similarity": 1.0,
             "rationale": "shared behavior: deploy_versioned:peer:pre, deploy_versioned:peer:30-180s, deploy:peer:pre, deploy:peer:30-180s, cross_service_error:self:pre"
           }
@@ -111,14 +111,14 @@
           }
         ],
         "confidence": 0.9919,
-        "explain": "Incident INC-501 on checkout-api triggered by alert:checkout-api/error-rate>5%. Reconstructed causal chain: deploy of payments-svc version v2.10.0 preceded error log on checkout-api ('timeout calling payments-svc') (confidence 0.69); error log on checkout-api ('timeout calling payments-svc') preceded incident signal INC-501 (confidence 0.77). Causal graph: deploy -> checkout timeout -> incident signal. Behaviorally most similar past incident: INC-642 (similarity 1.00; shared behavior: deploy_versioned:peer:pre, deploy_versioned:peer:30-180s, deploy:peer:pre, deploy:peer:30-180s, cross_service_error:self:pre). 1 additional matches found across the historical memory. Suggested remediation: rollback on billing-svc (resolved 2/2, confidence 1.00)."
+        "explain": "Incident INC-501 on checkout-api triggered by alert:checkout-api/error-rate>5%. Reconstructed causal chain: deploy of payments-svc version v2.10.0 preceded error log on checkout-api ('timeout calling payments-svc') (confidence 0.69); error log on checkout-api ('timeout calling payments-svc') preceded incident signal INC-501 (confidence 0.77). Causal graph: deploy -> checkout timeout -> incident signal. Behaviorally most similar past incident: INC-588 (similarity 1.00; shared behavior: deploy_versioned:peer:pre, deploy_versioned:peer:30-180s, deploy:peer:pre, deploy:peer:30-180s, cross_service_error:self:pre). 1 additional matches found across the historical memory. Suggested remediation: rollback on billing-svc (resolved 2/2, confidence 1.00)."
       }
     },
     {
       "incident_id": "INC-588",
       "trigger": "alert:checkout-api/error-rate>5%",
       "ts": "2026-04-08T12:02:30Z",
-      "elapsed_ms": 0.184,
+      "elapsed_ms": 0.251,
       "context": {
         "related_events": [
           {
@@ -199,12 +199,12 @@
         ],
         "similar_past_incidents": [
           {
-            "incident_id": "INC-642",
+            "incident_id": "INC-501",
             "similarity": 1.0,
             "rationale": "shared behavior: deploy_versioned:peer:pre, deploy_versioned:peer:30-180s, deploy:peer:pre, deploy:peer:30-180s, cross_service_error:self:pre"
           },
           {
-            "incident_id": "INC-501",
+            "incident_id": "INC-642",
             "similarity": 1.0,
             "rationale": "shared behavior: deploy_versioned:peer:pre, deploy_versioned:peer:30-180s, deploy:peer:pre, deploy:peer:30-180s, cross_service_error:self:pre"
           }
@@ -218,14 +218,14 @@
           }
         ],
         "confidence": 1.0,
-        "explain": "Incident INC-588 on checkout-api triggered by alert:checkout-api/error-rate>5%. Reconstructed causal chain: deploy of payments-svc version v2.11.0 preceded latency_p99_ms = 4250 on payments-svc (confidence 0.92); latency_p99_ms = 4250 on payments-svc preceded incident signal INC-588 (confidence 0.69). Causal graph: deploy -> latency spike -> incident signal. Behaviorally most similar past incident: INC-642 (similarity 1.00; shared behavior: deploy_versioned:peer:pre, deploy_versioned:peer:30-180s, deploy:peer:pre, deploy:peer:30-180s, cross_service_error:self:pre). 1 additional matches found across the historical memory. Suggested remediation: rollback on billing-svc (resolved 2/2, confidence 1.00)."
+        "explain": "Incident INC-588 on checkout-api triggered by alert:checkout-api/error-rate>5%. Reconstructed causal chain: deploy of payments-svc version v2.11.0 preceded latency_p99_ms = 4250 on payments-svc (confidence 0.92); latency_p99_ms = 4250 on payments-svc preceded incident signal INC-588 (confidence 0.69). Causal graph: deploy -> latency spike -> incident signal. Behaviorally most similar past incident: INC-501 (similarity 1.00; shared behavior: deploy_versioned:peer:pre, deploy_versioned:peer:30-180s, deploy:peer:pre, deploy:peer:30-180s, cross_service_error:self:pre). 1 additional matches found across the historical memory. Suggested remediation: rollback on billing-svc (resolved 2/2, confidence 1.00)."
       }
     },
     {
       "incident_id": "INC-642",
       "trigger": "alert:checkout-api/error-rate>5%",
       "ts": "2026-04-22T09:32:45Z",
-      "elapsed_ms": 0.149,
+      "elapsed_ms": 0.215,
       "context": {
         "related_events": [
           {
@@ -306,12 +306,12 @@
         ],
         "similar_past_incidents": [
           {
-            "incident_id": "INC-588",
+            "incident_id": "INC-501",
             "similarity": 1.0,
             "rationale": "shared behavior: deploy_versioned:peer:pre, deploy_versioned:peer:30-180s, deploy:peer:pre, deploy:peer:30-180s, cross_service_error:self:pre"
           },
           {
-            "incident_id": "INC-501",
+            "incident_id": "INC-588",
             "similarity": 1.0,
             "rationale": "shared behavior: deploy_versioned:peer:pre, deploy_versioned:peer:30-180s, deploy:peer:pre, deploy:peer:30-180s, cross_service_error:self:pre"
           }
@@ -325,14 +325,14 @@
           }
         ],
         "confidence": 1.0,
-        "explain": "Incident INC-642 on checkout-api triggered by alert:checkout-api/error-rate>5%. Reconstructed causal chain: deploy of payments-svc version v2.13.0 preceded latency_p99_ms = 3700 on payments-svc (confidence 0.92); latency_p99_ms = 3700 on payments-svc preceded incident signal INC-642 (confidence 0.69). Causal graph: deploy -> latency spike -> incident signal. Behaviorally most similar past incident: INC-588 (similarity 1.00; shared behavior: deploy_versioned:peer:pre, deploy_versioned:peer:30-180s, deploy:peer:pre, deploy:peer:30-180s, cross_service_error:self:pre). 1 additional matches found across the historical memory. Suggested remediation: rollback on billing-svc (resolved 2/2, confidence 1.00)."
+        "explain": "Incident INC-642 on checkout-api triggered by alert:checkout-api/error-rate>5%. Reconstructed causal chain: deploy of payments-svc version v2.13.0 preceded latency_p99_ms = 3700 on payments-svc (confidence 0.92); latency_p99_ms = 3700 on payments-svc preceded incident signal INC-642 (confidence 0.69). Causal graph: deploy -> latency spike -> incident signal. Behaviorally most similar past incident: INC-501 (similarity 1.00; shared behavior: deploy_versioned:peer:pre, deploy_versioned:peer:30-180s, deploy:peer:pre, deploy:peer:30-180s, cross_service_error:self:pre). 1 additional matches found across the historical memory. Suggested remediation: rollback on billing-svc (resolved 2/2, confidence 1.00)."
       }
     },
     {
       "incident_id": "INC-714",
       "trigger": "alert:checkout-api/error-rate>5%",
       "ts": "2026-05-10T14:32:11Z",
-      "elapsed_ms": 1.457,
+      "elapsed_ms": 2.212,
       "context": {
         "related_events": [
           {
@@ -416,7 +416,7 @@
         ],
         "similar_past_incidents": [
           {
-            "incident_id": "INC-642",
+            "incident_id": "INC-501",
             "similarity": 0.3333,
             "rationale": "shared behavior: deploy_versioned:peer:pre, deploy:peer:pre, cross_service_error:self:pre, trace_touches_self:pre, metric:latency:high:peer:pre"
           },
@@ -426,7 +426,7 @@
             "rationale": "shared behavior: deploy_versioned:peer:pre, deploy:peer:pre, cross_service_error:self:pre, trace_touches_self:pre, metric:latency:high:peer:pre"
           },
           {
-            "incident_id": "INC-501",
+            "incident_id": "INC-642",
             "similarity": 0.3333,
             "rationale": "shared behavior: deploy_versioned:peer:pre, deploy:peer:pre, cross_service_error:self:pre, trace_touches_self:pre, metric:latency:high:peer:pre"
           }
@@ -440,7 +440,7 @@
           }
         ],
         "confidence": 0.646,
-        "explain": "Incident INC-714 on checkout-api triggered by alert:checkout-api/error-rate>5%. Reconstructed causal chain: deploy of billing-svc version v2.14.0 preceded latency_p99_ms = 4820 on billing-svc (confidence 0.92); latency_p99_ms = 4820 on billing-svc preceded incident signal INC-714 (confidence 0.51). Causal graph: deploy -> latency spike -> incident signal. Behaviorally most similar past incident: INC-642 (similarity 0.33; shared behavior: deploy_versioned:peer:pre, deploy:peer:pre, cross_service_error:self:pre, trace_touches_self:pre, metric:latency:high:peer:pre). 2 additional matches found across the historical memory. Suggested remediation: rollback on billing-svc (resolved 3/3, confidence 0.80)."
+        "explain": "Incident INC-714 on checkout-api triggered by alert:checkout-api/error-rate>5%. Reconstructed causal chain: deploy of billing-svc version v2.14.0 preceded latency_p99_ms = 4820 on billing-svc (confidence 0.92); latency_p99_ms = 4820 on billing-svc preceded incident signal INC-714 (confidence 0.51). Causal graph: deploy -> latency spike -> incident signal. Behaviorally most similar past incident: INC-501 (similarity 0.33; shared behavior: deploy_versioned:peer:pre, deploy:peer:pre, cross_service_error:self:pre, trace_touches_self:pre, metric:latency:high:peer:pre). 2 additional matches found across the historical memory. Suggested remediation: rollback on billing-svc (resolved 3/3, confidence 0.80)."
       }
     }
   ],

@@ -8,9 +8,10 @@ Explainability and Context Quality axes.
 from pce.schema import Context, IncidentSignal, empty_context, Event
 from pce.causal.window import get_window
 from pce.causal.chain import build_chain
-from pce.signature.matcher import render_rationale
 from pce.signature.abstraction import extract_signal_service
-from pce.memory.remediation import aggregate_from_matches, fallback_heuristic
+from pce.memory.remediation import fallback_heuristic
+from pce.memory.incident_extractor import extract_episode
+from pce.ranking.remediation import rank_remediations
 
 
 # Cap related_events so the Context stays signal-dense. Most bench evaluations
@@ -37,22 +38,33 @@ def reconstruct(engine, signal: IncidentSignal, mode: str = "fast") -> Context:
     # 1) Window of candidate events
     window_ids, _signal_ts = get_window(engine, signal_event_id, mode=mode)
 
-    # 2) Similar past incidents (Person B's matcher)
-    top_k = 5 if mode == "fast" else 10
-    matches = engine.matcher.find_similar(engine, inc_id, top_k=top_k)
-    # Record matches for the feedback loop so a later remediation can grade them.
-    if engine.feedback is not None:
-        engine.feedback.record_query_matches(inc_id, matches)
+    # 2) Incident abstraction + hybrid retrieval
+    query_episode = extract_episode(
+        engine,
+        inc_id,
+        signal_event_id=signal_event_id,
+        window_ids=window_ids,
+        mode=mode,
+    )
 
-    for past_id, sim, overlap in matches:
+    top_k = 5 if mode == "fast" else 10
+    matches = engine.retriever.find_similar(engine, query_episode, mode=mode, top_k=top_k)
+
+    # Record matches for the feedback loop so a later remediation can grade them.
+    if engine.learning is not None:
+        engine.learning.record_query_matches(inc_id, matches)
+
+    for past_id, sim, rationale in matches:
         ctx["similar_past_incidents"].append({
             "incident_id": past_id,
             "similarity": round(sim, 4),
-            "rationale": render_rationale(overlap),
+            "rationale": rationale,
         })
 
     # 3) Causal chain
-    chain = build_chain(engine, signal_event_id, window_ids)
+    chain = query_episode.causal_chain if query_episode is not None else build_chain(
+        engine, signal_event_id, window_ids, mode=mode
+    )
     ctx["causal_chain"] = chain
 
     # 4) Related events: events appearing in the chain + the window cap.
@@ -61,9 +73,9 @@ def reconstruct(engine, signal: IncidentSignal, mode: str = "fast") -> Context:
 
     # 5) Suggested remediations
     canonical_svc = _signal_canonical(engine, signal)
-    if matches:
-        suggested = aggregate_from_matches(engine, matches, canonical_svc)
-        if not suggested:  # matches existed but none had useful remediations
+    if matches and query_episode is not None:
+        suggested = rank_remediations(engine, matches, query_episode)
+        if not suggested:
             suggested = fallback_heuristic(engine, window_ids, canonical_svc)
     else:
         suggested = fallback_heuristic(engine, window_ids, canonical_svc)
@@ -167,7 +179,7 @@ def _build_explain(engine, signal, signal_event_id, canonical_svc, chain, matche
     if matches:
         top = matches[0]
         sim = top[1]
-        rationale = render_rationale(top[2])
+        rationale = top[2]
         parts.append(
             f"Behaviorally most similar past incident: {top[0]} "
             f"(similarity {sim:.2f}; {rationale})."
