@@ -103,7 +103,7 @@ def _summarize(report: dict) -> None:
         print(f"    causal_chain edges: {len(ctx['causal_chain'])}")
         print(f"    similar_past_incidents: {len(ctx['similar_past_incidents'])}")
         for m in ctx["similar_past_incidents"][:3]:
-            print(f"      - {m['past_incident_id']}  sim={m['similarity']}")
+            print(f"      - {m['incident_id']}  sim={m['similarity']}")
             print(f"        rationale: {m['rationale']}")
         print(f"    suggested_remediations: {len(ctx['suggested_remediations'])}")
         for s in ctx["suggested_remediations"][:2]:

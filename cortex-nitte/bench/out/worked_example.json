@@ -1,0 +1,127 @@
+{
+  "input": "bench/samples/worked_example.jsonl",
+  "mode": "fast",
+  "event_count": 7,
+  "signal_count": 1,
+  "ingest_ms": 1.606,
+  "reconstruct_total_ms": 0.579,
+  "reconstruct_avg_ms": 0.579,
+  "reconstructions": [
+    {
+      "incident_id": "INC-714",
+      "trigger": "alert:checkout-api/error-rate>5%",
+      "ts": "2026-05-10T14:32:11Z",
+      "elapsed_ms": 0.579,
+      "context": {
+        "related_events": [
+          {
+            "ts": "2026-05-10T14:21:30Z",
+            "kind": "deploy",
+            "service": "payments-svc",
+            "version": "v2.14.0",
+            "actor": "ci",
+            "event_id": 0
+          },
+          {
+            "ts": "2026-05-10T14:22:01Z",
+            "kind": "log",
+            "service": "checkout-api",
+            "level": "error",
+            "msg": "timeout calling payments-svc",
+            "trace_id": "abc123",
+            "template_id": 0,
+            "event_id": 1
+          },
+          {
+            "ts": "2026-05-10T14:22:01Z",
+            "kind": "metric",
+            "service": "payments-svc",
+            "name": "latency_p99_ms",
+            "value": 4820,
+            "event_id": 2
+          },
+          {
+            "ts": "2026-05-10T14:22:08Z",
+            "kind": "trace",
+            "trace_id": "abc123",
+            "spans": [
+              {
+                "svc": "checkout-api",
+                "dur_ms": 5012
+              },
+              {
+                "svc": "payments-svc",
+                "dur_ms": 4980
+              }
+            ],
+            "event_id": 3
+          },
+          {
+            "ts": "2026-05-10T14:30:00Z",
+            "kind": "topology",
+            "change": "rename",
+            "from": "payments-svc",
+            "to": "billing-svc",
+            "event_id": 4
+          },
+          {
+            "ts": "2026-05-10T14:32:11Z",
+            "kind": "incident_signal",
+            "incident_id": "INC-714",
+            "trigger": "alert:checkout-api/error-rate>5%",
+            "event_id": 5
+          }
+        ],
+        "causal_chain": [
+          {
+            "cause_event_id": "0",
+            "effect_event_id": "1",
+            "cause_id": "0",
+            "effect_id": "1",
+            "evidence": "deploy->log, dt=31.0s",
+            "confidence": 0.685,
+            "timestamps": {
+              "cause_ts": "2026-05-10T14:21:30Z",
+              "effect_ts": "2026-05-10T14:22:01Z"
+            }
+          },
+          {
+            "cause_event_id": "1",
+            "effect_event_id": "5",
+            "cause_id": "1",
+            "effect_id": "5",
+            "evidence": "log->incident_signal, dt=610.0s",
+            "confidence": 0.5125,
+            "timestamps": {
+              "cause_ts": "2026-05-10T14:22:01Z",
+              "effect_ts": "2026-05-10T14:32:11Z"
+            }
+          }
+        ],
+        "similar_past_incidents": [],
+        "suggested_remediations": [
+          {
+            "action": "rollback",
+            "target": "checkout-api",
+            "historical_outcome": "heuristic: recent deploy + degradation",
+            "confidence": 0.4
+          },
+          {
+            "action": "scale_up",
+            "target": "checkout-api",
+            "historical_outcome": "heuristic: sustained latency breach",
+            "confidence": 0.35
+          }
+        ],
+        "confidence": 0.3212,
+        "explain": "Incident INC-714 on checkout-api triggered by alert:checkout-api/error-rate>5%. Reconstructed causal chain: deploy of payments-svc version v2.14.0 preceded error log on checkout-api ('timeout calling payments-svc') (confidence 0.69); error log on checkout-api ('timeout calling payments-svc') preceded incident signal INC-714 (confidence 0.51). Causal graph: deploy -> checkout timeout -> incident signal. No behaviorally similar past incidents in memory. Suggested remediation: rollback on checkout-api (heuristic: recent deploy + degradation, confidence 0.40)."
+      }
+    }
+  ],
+  "memory_stats": {
+    "events_stored": 7,
+    "incidents_registered": 1,
+    "resolved_incidents": 1,
+    "rename_chains": 1
+  }
+}

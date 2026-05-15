@@ -10,10 +10,15 @@ import os
 import sys
 from typing import Iterable, Literal
 
-# Make the repo-root `pce/` package importable from inside bench-p02-context/
+# Locate the `pce/` package. Prefer the working tree at <repo>/cortex-nitte/pce;
+# fall back to <repo>/pce for older layouts.
 _THIS = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.abspath(os.path.join(_THIS, "..", "..", ".."))
-if _REPO_ROOT not in sys.path:
+_NITTE = os.path.join(_REPO_ROOT, "cortex-nitte")
+if os.path.isdir(os.path.join(_NITTE, "pce")):
+    if _NITTE not in sys.path:
+        sys.path.insert(0, _NITTE)
+elif _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from adapter import Adapter
