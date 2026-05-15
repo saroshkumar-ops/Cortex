@@ -1,0 +1,24 @@
+{"ts":"2026-04-01T10:00:00Z","kind":"deploy","service":"payments-svc","version":"v2.10.0","actor":"ci"}
+{"ts":"2026-04-01T10:00:45Z","kind":"metric","service":"payments-svc","name":"latency_p99_ms","value":3900}
+{"ts":"2026-04-01T10:01:00Z","kind":"log","service":"checkout-api","level":"error","msg":"timeout calling payments-svc","trace_id":"tr-001"}
+{"ts":"2026-04-01T10:01:05Z","kind":"trace","trace_id":"tr-001","spans":[{"svc":"checkout-api","dur_ms":4100},{"svc":"payments-svc","dur_ms":4050}]}
+{"ts":"2026-04-01T10:02:00Z","kind":"incident_signal","incident_id":"INC-501","trigger":"alert:checkout-api/error-rate>5%"}
+{"ts":"2026-04-01T10:25:00Z","kind":"remediation","incident_id":"INC-501","action":"rollback","target":"payments-svc","version":"v2.9.0","outcome":"resolved"}
+{"ts":"2026-04-08T12:00:00Z","kind":"deploy","service":"payments-svc","version":"v2.11.0","actor":"ci"}
+{"ts":"2026-04-08T12:00:30Z","kind":"metric","service":"payments-svc","name":"latency_p99_ms","value":4250}
+{"ts":"2026-04-08T12:00:55Z","kind":"log","service":"checkout-api","level":"error","msg":"timeout calling payments-svc","trace_id":"tr-002"}
+{"ts":"2026-04-08T12:01:02Z","kind":"trace","trace_id":"tr-002","spans":[{"svc":"checkout-api","dur_ms":4300},{"svc":"payments-svc","dur_ms":4290}]}
+{"ts":"2026-04-08T12:02:30Z","kind":"incident_signal","incident_id":"INC-588","trigger":"alert:checkout-api/error-rate>5%"}
+{"ts":"2026-04-08T12:30:00Z","kind":"remediation","incident_id":"INC-588","action":"rollback","target":"payments-svc","version":"v2.10.0","outcome":"resolved"}
+{"ts":"2026-04-22T09:30:00Z","kind":"deploy","service":"payments-svc","version":"v2.13.0","actor":"ci"}
+{"ts":"2026-04-22T09:30:50Z","kind":"metric","service":"payments-svc","name":"latency_p99_ms","value":3700}
+{"ts":"2026-04-22T09:31:10Z","kind":"log","service":"checkout-api","level":"error","msg":"timeout calling payments-svc","trace_id":"tr-003"}
+{"ts":"2026-04-22T09:31:18Z","kind":"trace","trace_id":"tr-003","spans":[{"svc":"checkout-api","dur_ms":3950},{"svc":"payments-svc","dur_ms":3900}]}
+{"ts":"2026-04-22T09:32:45Z","kind":"incident_signal","incident_id":"INC-642","trigger":"alert:checkout-api/error-rate>5%"}
+{"ts":"2026-04-22T10:00:00Z","kind":"remediation","incident_id":"INC-642","action":"rollback","target":"payments-svc","version":"v2.12.0","outcome":"resolved"}
+{"ts":"2026-05-01T00:00:00Z","kind":"topology","change":"rename","from":"payments-svc","to":"billing-svc"}
+{"ts":"2026-05-10T14:21:30Z","kind":"deploy","service":"billing-svc","version":"v2.14.0","actor":"ci"}
+{"ts":"2026-05-10T14:22:01Z","kind":"metric","service":"billing-svc","name":"latency_p99_ms","value":4820}
+{"ts":"2026-05-10T14:22:01Z","kind":"log","service":"checkout-api","level":"error","msg":"timeout calling billing-svc","trace_id":"abc123"}
+{"ts":"2026-05-10T14:22:08Z","kind":"trace","trace_id":"abc123","spans":[{"svc":"checkout-api","dur_ms":5012},{"svc":"billing-svc","dur_ms":4980}]}
+{"ts":"2026-05-10T14:32:11Z","kind":"incident_signal","incident_id":"INC-714","trigger":"alert:checkout-api/error-rate>5%"}

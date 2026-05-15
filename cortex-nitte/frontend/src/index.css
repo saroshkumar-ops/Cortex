@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  font-family: 'Inter', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --bg: #f0f4ff;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 10% 5%, #d7ecff 0%, transparent 28%),
+    radial-gradient(circle at 85% 0%, #ffe7d9 0%, transparent 24%),
+    #f0f4ff;
+}
+
+/* Pulse animation for StatusDot */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(0.92); }
+}
+
+/* Subtle glow for critical badges */
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 4px 1px rgba(239,68,68,0.3); }
+  50%       { box-shadow: 0 0 8px 3px rgba(239,68,68,0.5); }
+}
+
+.glow-critical { animation: glow 2s ease-in-out infinite; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
