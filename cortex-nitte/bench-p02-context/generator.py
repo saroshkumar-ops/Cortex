@@ -196,6 +196,7 @@ def generate(cfg: GenConfig | None = None) -> Dataset:
     train.sort(key=lambda e: e["ts"])
     eval_.sort(key=lambda e: e["ts"])
     signals.sort(key=lambda e: e["ts"])
+    truth.sort(key=lambda t: next(s["ts"] for s in signals if s["incident_id"] == t["incident_id"]))
 
     return Dataset(
         train_events=train,

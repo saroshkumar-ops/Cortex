@@ -45,6 +45,11 @@ _METRIC_TIERS = {
     "request_rate": (10.0, 200.0),
 }
 
+# Background metric names that carry near-zero signal for incident family
+# discrimination. These flood the token set with identical noise tokens
+# across all incidents, destroying Jaccard precision.
+_NOISE_METRICS = {"qps"}
+
 
 _TRIGGER_SVC_RE = re.compile(r"[:\s]([\w][\w\-\.]*)/")
 
@@ -212,8 +217,15 @@ def build_tokens(
                             tokens.add(f"cross_service_error:{role}:{b}")
                         break
         elif kind == "metric":
-            tier = _metric_tier(ev.get("name", ""), float(ev.get("value", 0.0) or 0.0))
-            family = _metric_family(ev.get("name", ""))
+            mname = (ev.get("name") or "").lower()
+            mval = float(ev.get("value", 0.0) or 0.0)
+            family = _metric_family(mname)
+            # Skip background noise metrics (e.g. qps at normal values).
+            # These flood the token set with identical tokens across all
+            # incidents, destroying Jaccard discriminative power.
+            if family in _NOISE_METRICS:
+                continue
+            tier = _metric_tier(mname, mval)
             for b in time_labels:
                 tokens.add(f"metric:{family}:{tier}:{role}:{b}")
         elif kind == "trace":
@@ -259,4 +271,19 @@ def _metric_family(name: str) -> str:
     for frag in ("latency", "error_rate", "cpu", "memory", "request_rate"):
         if frag in name_lower:
             return frag
+    # Identify known noise metrics by name
+    if "qps" in name_lower:
+        return "qps"
     return "other"
+
+
+def _trigger_type_for_token(trigger: str) -> str:
+    """Classify a trigger string into a behavioral type for tokenization."""
+    t = (trigger or "").lower()
+    if "latency" in t:
+        return "latency"
+    if "error" in t or "timeout" in t:
+        return "error"
+    if "saturation" in t or "cpu" in t or "memory" in t:
+        return "resource"
+    return "generic"

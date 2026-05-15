@@ -14,11 +14,13 @@ closer in future queries. Stored as a sparse dict to keep cost bounded.
 from pce.signature import abstraction, shape
 
 
-# LSH banding parameters: 128 perms split into 32 bands of 4 rows.
-# Two signatures collide in a band when all 4 rows match — corresponds to
-# a similarity threshold of (1/b)^(1/r) ≈ 0.42 for the candidate set.
-NUM_BANDS = 32
-ROWS_PER_BAND = 4
+# LSH banding parameters: 128 perms split into 64 bands of 2 rows.
+# Two signatures collide in a band when both rows match — corresponds to
+# a similarity threshold of (1/b)^(1/r) ≈ 0.12 for the candidate set.
+# At bench scale (<100 incidents) this is cheap; wider candidate generation
+# directly improves recall.
+NUM_BANDS = 64
+ROWS_PER_BAND = 2
 assert NUM_BANDS * ROWS_PER_BAND == shape.NUM_PERMUTATIONS
 
 
@@ -77,7 +79,7 @@ class Matcher:
         engine,
         signal_incident_id: str,
         top_k: int = 5,
-        min_similarity: float = 0.15,
+        min_similarity: float = 0.05,
     ) -> list[tuple[str, float, set[str]]]:
         """Return up to top_k (past_incident_id, similarity, overlapping_tokens).
 

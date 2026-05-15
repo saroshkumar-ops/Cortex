@@ -48,9 +48,9 @@ def reconstruct(engine, signal: IncidentSignal, mode: str = "fast") -> Context:
     )
 
     top_k = 5 if mode == "fast" else 10
-    # Pull a wider candidate pool when the LLM reranker is active so it has
-    # something to reorder. Otherwise stay at top_k for cost parity.
-    retrieval_k = max(top_k, 10) if getattr(engine, "llm_reranker", None) is not None else top_k
+    # We have massive latency headroom — always retrieve a wide pool so
+    # the scorer's multi-feature ranking has more to work with.
+    retrieval_k = max(top_k, 20)
     matches = engine.retriever.find_similar(engine, query_episode, mode=mode, top_k=retrieval_k)
 
     # Optional LLM reranking pass. Falls back to LSH order on any failure.

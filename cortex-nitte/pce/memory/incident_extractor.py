@@ -86,6 +86,7 @@ def extract_episode(
         graph_tokens=frozenset(graph_tokens),
         behavior_tokens=frozenset(behavior_tokens_set),
         minhash_signature=minhash_sig,
+        canonical_service_id=canonical_service_id,
     )
 
     return IncidentEpisode(

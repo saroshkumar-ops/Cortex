@@ -16,6 +16,7 @@ class IncidentMemory:
         "by_temporal",
         "by_graph_token",
         "by_service_id",
+        "by_service_name",
     )
 
     def __init__(self) -> None:
@@ -26,6 +27,7 @@ class IncidentMemory:
         self.by_temporal: dict[str, set[str]] = {}
         self.by_graph_token: dict[str, set[str]] = {}
         self.by_service_id: dict[int, set[str]] = {}
+        self.by_service_name: dict[str, set[str]] = {}
 
     def upsert(self, episode: IncidentEpisode) -> None:
         existing = self._episodes.get(episode.incident_id)
@@ -64,6 +66,11 @@ class IncidentMemory:
     def candidates_by_service_ids(self, service_ids: Iterable[int]) -> set[str]:
         return self._collect(self.by_service_id, service_ids)
 
+    def candidates_by_service_name(self, name: str | None) -> set[str]:
+        if not name:
+            return set()
+        return self.by_service_name.get(name, set()).copy()
+
     # ---- internals ----
 
     def _index(self, episode: IncidentEpisode) -> None:
@@ -80,6 +87,8 @@ class IncidentMemory:
             self.by_graph_token.setdefault(t, set()).add(episode.incident_id)
         for sid in sig.involved_service_ids:
             self.by_service_id.setdefault(sid, set()).add(episode.incident_id)
+        if episode.canonical_service_name:
+            self.by_service_name.setdefault(episode.canonical_service_name, set()).add(episode.incident_id)
 
     def _deindex(self, episode: IncidentEpisode) -> None:
         sig = episode.signature
@@ -89,6 +98,12 @@ class IncidentMemory:
         self._discard(self.by_temporal, sig.temporal_buckets, episode.incident_id)
         self._discard(self.by_graph_token, sig.graph_tokens, episode.incident_id)
         self._discard(self.by_service_id, sig.involved_service_ids, episode.incident_id)
+        if episode.canonical_service_name:
+            bucket = self.by_service_name.get(episode.canonical_service_name)
+            if bucket:
+                bucket.discard(episode.incident_id)
+                if not bucket:
+                    self.by_service_name.pop(episode.canonical_service_name, None)
 
     @staticmethod
     def _discard(index: dict, keys: Iterable, incident_id: str) -> None:

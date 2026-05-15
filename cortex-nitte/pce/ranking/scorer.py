@@ -9,20 +9,22 @@ FAST_WEIGHTS = {
     "lexical": 0.45,
     "symptom": 0.20,
     "temporal": 0.15,
-    "topology": 0.10,
     "graph": 0.10,
+    "topology": 0.10,
+    "trigger": 0.00,
     "pattern": 0.00,
     "remediation": 0.00,
 }
 
 DEEP_WEIGHTS = {
-    "lexical": 0.30,
-    "graph": 0.20,
-    "symptom": 0.15,
+    "lexical": 0.45,
+    "symptom": 0.20,
     "temporal": 0.15,
+    "graph": 0.10,
     "topology": 0.10,
-    "pattern": 0.05,
-    "remediation": 0.05,
+    "trigger": 0.00,
+    "pattern": 0.00,
+    "remediation": 0.00,
 }
 
 
@@ -43,6 +45,7 @@ def score_incident(
     remediation_sim = _jaccard(query_sig.remediation_action_set(), cand_sig.remediation_action_set())
     pattern_sim = _jaccard(set(query_sig.causal_pattern), set(cand_sig.causal_pattern))
     topology_sim = _topology_similarity(engine, query_sig, cand_sig)
+    trigger_sim = 1.0 if query_sig.trigger_type == cand_sig.trigger_type else 0.0
 
     weights = FAST_WEIGHTS if mode == "fast" else DEEP_WEIGHTS
     features = {
@@ -53,6 +56,7 @@ def score_incident(
         "remediation": remediation_sim,
         "pattern": pattern_sim,
         "topology": topology_sim,
+        "trigger": trigger_sim,
     }
 
     score = 0.0
@@ -81,17 +85,39 @@ def _topology_similarity(engine, query_sig, cand_sig) -> float:
     c_ids = set(cand_sig.involved_service_ids)
     if not q_ids or not c_ids:
         return 0.0
-    if q_ids & c_ids:
+
+    # Resolve stored service IDs to current canonical names (handles
+    # rename-induced ID merges where the stored ID may be orphaned).
+    q_names = set()
+    for sid in q_ids:
+        name = engine.identity.canonical_name(sid)
+        if name:
+            # Resolve to current canonical to handle rename chains
+            current = engine.identity.canonical(name, None) or name
+            q_names.add(current)
+
+    c_names = set()
+    for sid in c_ids:
+        name = engine.identity.canonical_name(sid)
+        if name:
+            current = engine.identity.canonical(name, None) or name
+            c_names.add(current)
+
+    if q_names and c_names and q_names & c_names:
         return 1.0
+
+    # Direct ID overlap (if names couldn't be resolved)
+    if q_ids & c_ids:
+        return 0.8
 
     # Check direct dependency neighbors
     for sid in q_ids:
         neighbors = engine.identity.neighbors(sid)
         if neighbors & c_ids:
-            return 0.6
+            return 0.5
 
     if set(query_sig.involved_service_clusters) & set(cand_sig.involved_service_clusters):
-        return 0.4
+        return 0.3
 
     return 0.0
 

@@ -19,6 +19,7 @@ class IncidentSignature:
     graph_tokens: frozenset[str]
     behavior_tokens: frozenset[str]
     minhash_signature: tuple[int, ...]
+    canonical_service_id: int | None = None
 
     def remediation_action_set(self) -> set[str]:
         return set(self.remediation_actions)

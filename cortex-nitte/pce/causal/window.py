@@ -12,8 +12,9 @@ from pce.store.event_log import _parse_ts
 FAST_BEFORE_S = 2400   # 40 min — must be at least WINDOW_BEFORE_S so the
                        # chain builder sees the same events the matcher does
 FAST_AFTER_S = 60
-DEEP_BEFORE_S = 3600   # 60 min
-DEEP_AFTER_S = 120
+DEEP_BEFORE_S = 2400   # Same window as fast — DEEP advantage comes from
+                       # stronger scoring, not more background noise
+DEEP_AFTER_S = 60
 
 
 def get_window(engine, signal_event_id: int, mode: str = "fast") -> tuple[list[int], float]:
