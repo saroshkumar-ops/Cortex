@@ -1,5 +1,5 @@
 {
-  "mode": "deep",
+  "mode": "fast",
   "seeds": [
     9999,
     31415,
@@ -20,89 +20,89 @@
         "background_density": 200,
         "start_ts": "2026-05-01T00:00:00Z"
       },
-      "ingest_ms": 234.04,
+      "ingest_ms": 234.27,
       "n_train": 39536,
       "n_eval": 16662,
       "n_signals": 10,
-      "mode": "deep",
+      "mode": "fast",
       "per_incident": [
         {
           "incident_id": "INC-1513-2",
           "correct_family_in_top_k": true,
           "precision_at_k": 0.8,
           "remediation_matches": true,
-          "latency_ms": 92.75454599992372
+          "latency_ms": 204.26585900077043
         },
         {
           "incident_id": "INC-3456-3",
           "correct_family_in_top_k": true,
           "precision_at_k": 0.8,
           "remediation_matches": true,
-          "latency_ms": 96.58094099995651
+          "latency_ms": 204.71374199951242
         },
         {
           "incident_id": "INC-9582-0",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 92.97264799988625
+          "latency_ms": 232.03165900031308
         },
         {
           "incident_id": "INC-62845-1",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 98.80571199937549
+          "latency_ms": 217.56151099998533
         },
         {
           "incident_id": "INC-8331-3",
           "correct_family_in_top_k": true,
           "precision_at_k": 0.8,
           "remediation_matches": true,
-          "latency_ms": 155.23604600002727
+          "latency_ms": 126.26192300012917
         },
         {
           "incident_id": "INC-34003-0",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 97.81057400050486
+          "latency_ms": 103.43432299941924
         },
         {
           "incident_id": "INC-38878-0",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 96.86422600043443
+          "latency_ms": 97.13136899972596
         },
         {
           "incident_id": "INC-44359-4",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 88.28396499939117
+          "latency_ms": 108.63006399995356
         },
         {
           "incident_id": "INC-1536-2",
           "correct_family_in_top_k": true,
           "precision_at_k": 0.8,
           "remediation_matches": true,
-          "latency_ms": 93.75693699985277
+          "latency_ms": 105.89516600066418
         },
         {
           "incident_id": "INC-68715-0",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 105.19555999962904
+          "latency_ms": 99.41619999972318
         }
       ],
       "summary": {
         "recall@5": 1.0,
         "precision@5_mean": 0.92,
         "remediation_acc": 1.0,
-        "latency_p95_ms": 105.2,
-        "latency_mean_ms": 101.83,
+        "latency_p95_ms": 217.56,
+        "latency_mean_ms": 149.93,
         "n": 10
       }
     },
@@ -120,89 +120,89 @@
         "background_density": 200,
         "start_ts": "2026-05-01T00:00:00Z"
       },
-      "ingest_ms": 230.14,
+      "ingest_ms": 231.15,
       "n_train": 39535,
       "n_eval": 16663,
       "n_signals": 10,
-      "mode": "deep",
+      "mode": "fast",
       "per_incident": [
         {
           "incident_id": "INC-17649-1",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 97.7825390000362
+          "latency_ms": 96.55695899982675
         },
         {
           "incident_id": "INC-37973-1",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 87.38262999941071
+          "latency_ms": 101.4209300001312
         },
         {
           "incident_id": "INC-55661-0",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 84.81449999999313
+          "latency_ms": 104.37585999989096
         },
         {
           "incident_id": "INC-6517-0",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 94.58402899963403
+          "latency_ms": 91.42737999991368
         },
         {
           "incident_id": "INC-9918-1",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 98.01432699987345
+          "latency_ms": 92.25089099982142
         },
         {
           "incident_id": "INC-38761-2",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 96.17538000020431
+          "latency_ms": 89.83359800004109
         },
         {
           "incident_id": "INC-93983-2",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 90.05382699979236
+          "latency_ms": 92.0473870000933
         },
         {
           "incident_id": "INC-99173-2",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 97.04172000056133
+          "latency_ms": 97.61556699959328
         },
         {
           "incident_id": "INC-672-2",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 99.44915400046739
+          "latency_ms": 107.12569800034544
         },
         {
           "incident_id": "INC-24535-3",
           "correct_family_in_top_k": true,
           "precision_at_k": 0.4,
           "remediation_matches": true,
-          "latency_ms": 336.61467999991146
+          "latency_ms": 1141.2128869997105
         }
       ],
       "summary": {
         "recall@5": 1.0,
         "precision@5_mean": 0.94,
         "remediation_acc": 1.0,
-        "latency_p95_ms": 99.45,
-        "latency_mean_ms": 118.19,
+        "latency_p95_ms": 107.13,
+        "latency_mean_ms": 201.39,
         "n": 10
       }
     },
@@ -220,89 +220,89 @@
         "background_density": 200,
         "start_ts": "2026-05-01T00:00:00Z"
       },
-      "ingest_ms": 229.01,
+      "ingest_ms": 232.56,
       "n_train": 39590,
       "n_eval": 16608,
       "n_signals": 10,
-      "mode": "deep",
+      "mode": "fast",
       "per_incident": [
         {
           "incident_id": "INC-46343-1",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 108.8511190000645
+          "latency_ms": 98.56483600015054
         },
         {
           "incident_id": "INC-59582-0",
           "correct_family_in_top_k": true,
           "precision_at_k": 0.4,
           "remediation_matches": true,
-          "latency_ms": 94.86189500057662
+          "latency_ms": 96.12819599988143
         },
         {
           "incident_id": "INC-10444-2",
           "correct_family_in_top_k": true,
           "precision_at_k": 0.8,
           "remediation_matches": true,
-          "latency_ms": 104.11211300015566
+          "latency_ms": 105.63404200001969
         },
         {
           "incident_id": "INC-39067-0",
           "correct_family_in_top_k": true,
           "precision_at_k": 0.4,
           "remediation_matches": true,
-          "latency_ms": 94.823341000847
+          "latency_ms": 91.98093799932394
         },
         {
           "incident_id": "INC-48846-4",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 95.69534700040094
+          "latency_ms": 120.75863999962166
         },
         {
           "incident_id": "INC-76485-1",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 100.87918499993975
+          "latency_ms": 175.8008550004888
         },
         {
           "incident_id": "INC-80680-0",
           "correct_family_in_top_k": true,
           "precision_at_k": 0.4,
           "remediation_matches": true,
-          "latency_ms": 120.86987499969837
+          "latency_ms": 103.6356889999297
         },
         {
           "incident_id": "INC-15982-4",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 136.54293200033862
+          "latency_ms": 134.41465699997934
         },
         {
           "incident_id": "INC-25703-1",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 97.20464499969239
+          "latency_ms": 97.19989299992449
         },
         {
           "incident_id": "INC-81516-1",
           "correct_family_in_top_k": true,
           "precision_at_k": 1.0,
           "remediation_matches": true,
-          "latency_ms": 90.84951699969679
+          "latency_ms": 100.97816199959198
         }
       ],
       "summary": {
         "recall@5": 1.0,
         "precision@5_mean": 0.8,
         "remediation_acc": 1.0,
-        "latency_p95_ms": 120.87,
-        "latency_mean_ms": 104.47,
+        "latency_p95_ms": 134.41,
+        "latency_mean_ms": 112.51,
         "n": 10
       }
     }
@@ -311,8 +311,8 @@
     "recall@5": 1.0,
     "precision@5_mean": 0.8867,
     "remediation_acc": 1.0,
-    "latency_p95_ms": 120.87,
-    "latency_mean_ms": 108.1633,
+    "latency_p95_ms": 217.56,
+    "latency_mean_ms": 154.61,
     "n_seeds": 3,
     "n_signals_total": 30,
     "n": 30

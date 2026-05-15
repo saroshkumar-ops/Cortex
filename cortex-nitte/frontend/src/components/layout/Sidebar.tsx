@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Database,
   FlaskConical,
+  Gauge,
   LayoutDashboard,
   Settings,
 } from 'lucide-react'
@@ -18,6 +19,7 @@ const navItems = [
   { to: '/memory', label: 'Memory', icon: Database },
   { to: '/actions', label: 'Actions', icon: Activity },
   { to: '/demo', label: 'Demo', icon: FlaskConical },
+  { to: '/benchmark', label: 'Benchmark', icon: Gauge },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 

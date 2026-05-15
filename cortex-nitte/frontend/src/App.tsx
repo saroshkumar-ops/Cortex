@@ -6,6 +6,7 @@ import IncidentDetail from './pages/IncidentDetail'
 import Memory from './pages/Memory'
 import Actions from './pages/Actions'
 import Demo from './pages/Demo'
+import Benchmark from './pages/Benchmark'
 import Settings from './pages/Settings'
 import { useWebSocket } from './hooks/useWebSocket'
 
@@ -23,6 +24,7 @@ export default function App({}: AppProps) {
         <Route path="memory" element={<Memory />} />
         <Route path="actions" element={<Actions />} />
         <Route path="demo" element={<Demo />} />
+        <Route path="benchmark" element={<Benchmark />} />
         <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>

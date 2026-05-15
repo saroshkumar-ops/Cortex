@@ -26,9 +26,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from pce.adapter import Engine
 from server import projection
+from server.stream_demo import router as stream_demo_router
 
 
 app = FastAPI(title="PCE Engine HTTP", version="0.1.0")
+app.include_router(stream_demo_router)
 
 # Frontend served from a different port during dev — wide-open CORS for the demo.
 app.add_middleware(
