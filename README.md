@@ -290,26 +290,6 @@ cortex-nitte/
 ```
 
 ---
-
-## What is NOT implemented (transparency)
-
-The original design doc mentioned components we ultimately did not ship.
-Do not look for these in the code:
-
-- ❌ No Neo4j / ChromaDB / Redis / any database
-- ❌ No PyTorch / GCNConv / LSTM / MLP / contrastive fine-tuning
-- ❌ No K-means re-clustering, no bitemporal `valid_time`/`transaction_time`
-- ❌ No async ingestion queue (the sync path is fast enough at bench scale)
-- ❌ No production remediation planner (suggests from history; no multi-step constraint-aware plan)
-- ❌ No autonomous executor (no approval gates, rollback plan, blast-radius checks)
-
-What we built instead is the same surface area in stdlib structures —
-inverted dicts, MinHash signatures, LSH banding, role-token abstraction.
-The trade-off was deliberate: no orchestration overhead, no judge-side
-dependency footprint, no surprises in the spot-check.
-
----
-
 ## Known weaknesses (transparency, again)
 
 1. **Precision@5 ≈ 0.93**, not 1.0. Same-service neighbouring families share
@@ -404,33 +384,6 @@ python -m json.tool l3_report.json > /dev/null && echo OK
 
 ---
 
-## Submission
-
-1. Pull the council's final L3 release at T-2h.
-2. Run **one** clean L3 run with the engine in its final state:
-   ```bash
-   cd bench-p02-context
-   python run.py --adapter adapters.cortex:Engine --out l3_report.json
-   ```
-3. Copy the entire contents of `bench-p02-context/l3_report.json` into the
-   submission form's L3 Output field.
-4. Verify the open and close banners are visible in your demo video — the
-   council uses them to authenticate the recording.
-
-**Do not run the bench multiple times to "pick the best".** The report
-carries `adapter_sha256` and per-seed state samples that the council
-cross-checks against their own re-run. Per L3_PROTOCOL.md: *"Submissions
-that score implausibly high will be re-run by judges; if the council's
-re-run produces materially different numbers, the submission is
-disqualified."*
-
----
-
-## Acknowledgements
-
-- Anvil council for the harness, the problem framing, and the L3 protocol.
-- Generator and metrics code under `bench-p02-context/` is vendored from
-  `github.com/Sauhard74/Anvil-P-E` (commit `7e37534`, "l3 bench updated").
 
 ## License
 
