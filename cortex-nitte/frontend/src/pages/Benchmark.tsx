@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Play, Loader2, CheckCircle2, AlertCircle, Brain, ScrollText, Trophy, Lightbulb } from 'lucide-react'
+import { Play, Loader2, CheckCircle2, AlertCircle, Brain, ScrollText, Trophy, Lightbulb, ShieldCheck, Terminal } from 'lucide-react'
 
 interface StatusEvent { phase: string; message: string }
 interface DatasetEvent { train_events: number; eval_events: number; eval_signals: number; n_services: number; days: number; seed: number }
@@ -127,6 +127,8 @@ export default function Benchmark() {
 
   return (
     <div className="space-y-6">
+      <L3Panel />
+
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="panel-title">Benchmark Run</p>
@@ -453,4 +455,298 @@ function logKindClass(kind: string): string {
 
 function Cursor() {
   return <span className="ml-0.5 inline-block h-3 w-1.5 animate-pulse bg-ink align-middle" />
+}
+
+// ─── L1 / L2 / L3 benchmark panel ────────────────────────────────────────────
+
+interface AggregatedRow {
+  'recall@5': number
+  'precision@5_mean': number
+  remediation_acc: number
+  latency_p95_ms: number
+  latency_mean_ms: number
+  n_seeds?: number
+  n_signals_total?: number
+}
+
+interface PerSeedRow {
+  seed: number
+  'recall@5': number
+  'precision@5_mean': number
+  remediation_acc: number
+  latency_p95_ms: number
+  latency_mean_ms: number
+  n: number
+}
+
+interface L1Result {
+  tier: 'L1'
+  passed: boolean
+  signals_scored: number
+  signals_with_matches: number
+  signals_with_remediations: number
+  reconstruct_avg_ms?: number
+  report_path: string
+  elapsed_ms: number
+  generated_at?: string
+}
+
+interface L2Result {
+  tier: 'L2'
+  config: { n_services: number; days: number; mode: string }
+  seeds: number[]
+  per_seed_summary: PerSeedRow[]
+  aggregated: AggregatedRow
+  score: { weighted_score: number; max_automated: number; axes: Record<string, number | null> }
+  report_path: string
+  elapsed_ms: number
+  generated_at?: string
+}
+
+interface L3Result {
+  tier: 'L3'
+  ok: boolean
+  l3_version?: string
+  timestamp?: string
+  adapter?: string
+  adapter_sha256?: string
+  seeds?: number[]
+  mode?: string
+  score?: { weighted_score: number; max_automated: number; axes: Record<string, number | null> }
+  aggregated?: AggregatedRow
+  per_seed_summary?: PerSeedRow[]
+  stderr_tail?: string
+  report_path: string
+  elapsed_ms: number
+}
+
+type AnyTier = L1Result | L2Result | L3Result
+type RunPhase = 'idle' | 'running' | 'done' | 'error'
+
+function L3Panel() {
+  const [l1, setL1] = useState<L1Result | null>(null)
+  const [l2, setL2] = useState<L2Result | null>(null)
+  const [l3, setL3] = useState<L3Result | null>(null)
+  const [busy, setBusy] = useState<'L1' | 'L2' | 'L3' | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  // Preload any existing per-tier reports on mount.
+  useEffect(() => {
+    const load = async (tier: 'l1' | 'l2' | 'l3', setter: (r: any) => void) => {
+      try {
+        const r = await fetch(`${API_BASE}/api/bench/report/${tier}`)
+        if (r.ok) setter(await r.json())
+      } catch {}
+    }
+    load('l1', setL1); load('l2', setL2); load('l3', setL3)
+  }, [])
+
+  const run = async (tier: 'L1' | 'L2' | 'L3') => {
+    setBusy(tier); setErr(null)
+    try {
+      const r = await fetch(`${API_BASE}/api/bench/${tier.toLowerCase()}`, { method: 'POST' })
+      if (!r.ok) { setErr(`HTTP ${r.status}`); return }
+      const data = await r.json()
+      if (tier === 'L1') setL1(data)
+      else if (tier === 'L2') setL2(data)
+      else setL3(data)
+    } catch (e) {
+      setErr(String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <section className="panel p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="panel-title">Benchmark evaluation · L1 · L2 · L3</p>
+          <h2 className="mt-1 text-2xl font-display font-semibold text-ink">
+            Run the three tiers
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm text-slate">
+            <strong>L1</strong> is the canonical worked example (sanity check).{' '}
+            <strong>L2</strong> is property-based on five random seeds at standard
+            scale.{' '}
+            <strong>L3</strong> is the council's official bench at stretch scale
+            (30 services × 21 days, cascading renames, 20 % decoys) — its
+            <code className="mx-1 rounded bg-haze/60 px-1 py-0.5 text-[11px]">l3_report.json</code>
+            is the <em>only</em> file that goes into the submission form.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        <TierCard
+          tier="L1" subtitle="Canonical · worked example"
+          icon={ShieldCheck} accent="ocean"
+          running={busy === 'L1'} onRun={() => run('L1')}
+        >
+          {l1 ? <L1Body r={l1} /> : <Empty />}
+        </TierCard>
+
+        <TierCard
+          tier="L2" subtitle="Property-based · 5 random seeds · 12 svc / 7 d"
+          icon={ShieldCheck} accent="ocean"
+          running={busy === 'L2'} onRun={() => run('L2')}
+        >
+          {l2 ? <SeedTierBody r={l2} /> : <Empty />}
+        </TierCard>
+
+        <TierCard
+          tier="L3" subtitle="Council bench · stretch · submission"
+          icon={Terminal} accent="ember"
+          running={busy === 'L3'} onRun={() => run('L3')}
+        >
+          {l3 ? <L3Body r={l3} /> : <Empty />}
+        </TierCard>
+      </div>
+
+      {err && <p className="mt-3 text-xs text-ember">{err}</p>}
+    </section>
+  )
+}
+
+function TierCard({
+  tier, subtitle, icon: Icon, accent, running, onRun, children,
+}: {
+  tier: 'L1' | 'L2' | 'L3'
+  subtitle: string
+  icon: React.ComponentType<{ className?: string }>
+  accent: 'ocean' | 'ember'
+  running: boolean
+  onRun: () => void
+  children: React.ReactNode
+}) {
+  const ring = accent === 'ember' ? 'border-ember/30' : 'border-haze'
+  const iconClass = accent === 'ember' ? 'text-ember' : 'text-ocean'
+  const btn = accent === 'ember' ? 'bg-ember text-white hover:bg-ember/90' : 'bg-ink text-white hover:bg-ink/90'
+  return (
+    <div className={`rounded-xl border ${ring} bg-white/80 p-4`}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="flex items-center gap-2">
+            <Icon className={`h-4 w-4 ${iconClass}`} />
+            <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate">{tier}</h3>
+          </div>
+          <p className="mt-1 text-[11px] text-slate">{subtitle}</p>
+        </div>
+        <button
+          onClick={onRun}
+          disabled={running}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold ${btn} disabled:opacity-60`}
+        >
+          {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+          {running ? 'Running…' : `Run ${tier}`}
+        </button>
+      </div>
+      <div className="mt-3">{children}</div>
+    </div>
+  )
+}
+
+function Empty() {
+  return <p className="text-[11px] text-slate">No run yet.</p>
+}
+
+function L1Body({ r }: { r: L1Result }) {
+  return (
+    <>
+      <div className="flex items-center gap-2">
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${r.passed ? 'bg-moss/15 text-moss' : 'bg-ember/15 text-ember'}`}>
+          {r.passed ? 'PASS' : 'FAIL'}
+        </span>
+        <span className="font-mono text-[11px] text-slate">{r.elapsed_ms.toFixed(0)} ms</span>
+      </div>
+      <dl className="mt-3 space-y-1 text-[11px]">
+        <Kv k="signals scored" v={r.signals_scored} />
+        <Kv k="with matches" v={r.signals_with_matches} />
+        <Kv k="with remediations" v={r.signals_with_remediations} />
+        <Kv k="reconstruct avg" v={r.reconstruct_avg_ms ? `${r.reconstruct_avg_ms.toFixed(1)} ms` : '—'} />
+        <Kv k="report" v={r.report_path} />
+      </dl>
+    </>
+  )
+}
+
+function SeedTierBody({ r }: { r: L2Result }) {
+  const a = r.aggregated
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="rounded-full bg-ocean/15 px-2 py-0.5 text-[10px] font-semibold text-ocean">
+          weighted {r.score.weighted_score.toFixed(3)} / {r.score.max_automated.toFixed(2)}
+        </span>
+        <span className="font-mono text-[11px] text-slate">{r.elapsed_ms.toFixed(0)} ms</span>
+      </div>
+      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+        <Kv k="recall@5" v={a['recall@5'].toFixed(3)} />
+        <Kv k="P@5" v={a['precision@5_mean'].toFixed(3)} />
+        <Kv k="rem_acc" v={a.remediation_acc.toFixed(3)} />
+        <Kv k="p95 ms" v={a.latency_p95_ms.toFixed(1)} />
+        <Kv k="seeds" v={r.seeds.length} />
+        <Kv k="signals" v={a.n_signals_total ?? r.per_seed_summary.reduce((s, p) => s + p.n, 0)} />
+      </dl>
+      <p className="mt-2 truncate font-mono text-[10px] text-slate">seeds: {r.seeds.join(', ')}</p>
+      <p className="mt-1 font-mono text-[10px] text-slate">→ {r.report_path}</p>
+    </>
+  )
+}
+
+function L3Body({ r }: { r: L3Result }) {
+  if (!r.ok || !r.score || !r.aggregated) {
+    return <p className="text-xs text-ember">L3 run failed. {r.stderr_tail?.slice(-200)}</p>
+  }
+  const a = r.aggregated
+  const pct = (r.score.weighted_score / r.score.max_automated) * 100
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="rounded-full bg-ember/15 px-2 py-0.5 text-[10px] font-semibold text-ember">
+          submission score {r.score.weighted_score.toFixed(4)}  ({pct.toFixed(1)} %)
+        </span>
+        <span className="font-mono text-[11px] text-slate">{r.elapsed_ms.toFixed(0)} ms</span>
+      </div>
+      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+        <Kv k="recall@5" v={a['recall@5'].toFixed(3)} />
+        <Kv k="P@5" v={a['precision@5_mean'].toFixed(3)} />
+        <Kv k="rem_acc" v={a.remediation_acc.toFixed(3)} />
+        <Kv k="p95 ms" v={a.latency_p95_ms.toFixed(1)} />
+        <Kv k="l3_version" v={r.l3_version ?? '—'} />
+        <Kv k="adapter_sha" v={r.adapter_sha256 ?? '—'} />
+      </dl>
+      <p className="mt-2 truncate font-mono text-[10px] text-slate">seeds: {r.seeds?.join(', ')}</p>
+      <p className="mt-1 font-mono text-[10px] text-slate">→ {r.report_path}  (submit this file)</p>
+      {r.stderr_tail && (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-[10px] uppercase tracking-widest text-slate">banner</summary>
+          <pre className="mt-1 max-h-40 overflow-auto rounded bg-[#0b1220] p-2 font-mono text-[9px] leading-tight text-[#e2e8f0]">
+{r.stderr_tail}
+          </pre>
+        </details>
+      )}
+    </>
+  )
+}
+
+
+function Kv({ k, v }: { k: string; v: string | number }) {
+  return (
+    <div className="flex items-center justify-between">
+      <dt className="text-slate">{k}</dt>
+      <dd className="font-mono font-semibold text-ink">{v}</dd>
+    </div>
+  )
+}
+
+function Headlet({ label, value, ok }: { label: string; value: string | number; ok?: boolean }) {
+  return (
+    <div className="rounded-lg bg-white/10 px-2 py-1.5">
+      <div className="text-[9px] uppercase tracking-widest text-white/60">{label}</div>
+      <div className={`font-mono text-base font-semibold ${ok === false ? 'text-ember' : ok ? 'text-moss' : 'text-white'}`}>
+        {value}
+      </div>
+    </div>
+  )
 }

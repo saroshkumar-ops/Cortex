@@ -74,7 +74,7 @@ def run(input_path: str, mode: str = "fast", out_path: str | None = None) -> dic
             "events_stored": len(engine.log),
             "incidents_registered": len(engine.matcher.all_incident_ids()),
             "resolved_incidents": len(engine._resolved),
-            "rename_chains": len(engine.identity._successor),
+            "rename_chains": len(getattr(engine.identity, "_renames", {})),
         },
     }
 

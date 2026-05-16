@@ -27,10 +27,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pce.adapter import Engine
 from server import projection
 from server.stream_demo import router as stream_demo_router
+from server.tiers import router as tiers_router
 
 
 app = FastAPI(title="PCE Engine HTTP", version="0.1.0")
 app.include_router(stream_demo_router)
+app.include_router(tiers_router)
 
 # Frontend served from a different port during dev — wide-open CORS for the demo.
 app.add_middleware(
@@ -52,9 +54,24 @@ _started_at = time.time()
 
 
 def _autoload_sample() -> None:
-    """If a sample JSONL is set via PCE_AUTOLOAD, ingest it on startup so the
-    dashboard has something to show without a manual upload step."""
+    """Ingest a sample JSONL on startup so the dashboard has something to show
+    without a manual upload step. Honours PCE_AUTOLOAD if set; otherwise falls
+    back to the bench's recurring-family sample so the legacy pages aren't
+    empty out of the box."""
     path = os.environ.get("PCE_AUTOLOAD")
+    if not path:
+        # Default to the bench sample shipped in the repo.
+        default = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "bench",
+                "samples",
+                "recurring_family.jsonl",
+            )
+        )
+        if os.path.isfile(default):
+            path = default
     if not path or not os.path.isfile(path):
         return
     events = []
@@ -230,7 +247,7 @@ def stats() -> dict:
             "services_known": len(_engine.indices.by_service),
             "incidents_registered": len(_engine.matcher.all_incident_ids()),
             "incidents_resolved": len(_engine._resolved),
-            "rename_chain_size": len(_engine.identity._successor),
+            "rename_chain_size": len(getattr(_engine.identity, "_renames", {})),
             "log_templates": _engine.templates.count(),
             "log_observations": _engine.templates.total_observations(),
             "log_compression_ratio": round(_engine.templates.compression_ratio(), 2),
@@ -276,6 +293,29 @@ async def ws(websocket: WebSocket) -> None:
             await asyncio.sleep(2.0)
     except WebSocketDisconnect:
         return
+
+
+@app.post("/api/pce/load_sample")
+def load_sample(body: dict = Body(default={})) -> dict:
+    """Re-ingest the bench's sample JSONL into the shared engine, so the
+    Dashboard / Memory / Incidents pages have something to show."""
+    sample = body.get("sample") or "recurring_family"
+    path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "..", "bench", "samples", f"{sample}.jsonl"
+        )
+    )
+    if not os.path.isfile(path):
+        raise HTTPException(404, f"sample not found: {sample}")
+    events: list[dict] = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                events.append(json.loads(line))
+    with _engine_lock:
+        _engine.ingest(events)
+    return {"ingested": len(events), "total_events": len(_engine.log), "sample": sample}
 
 
 @app.post("/api/pce/reset")

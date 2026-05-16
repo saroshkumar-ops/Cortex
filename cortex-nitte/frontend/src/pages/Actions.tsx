@@ -1,72 +1,84 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Activity } from 'lucide-react'
-import ActionLog from '../components/actions/ActionLog'
-import EmptyState from '../components/shared/EmptyState'
-import { useActions } from '../hooks/useActions'
 
-interface ActionsProps {}
+interface ActionRow {
+  prediction_id: string
+  service: string
+  action_type: string
+  result: string
+  timestamp: number
+}
 
-const ranges = [
-  { label: '24h', hours: 24 },
-  { label: '7d', hours: 24 * 7 },
-  { label: '30d', hours: 24 * 30 },
-  { label: 'All', hours: null },
-] as const
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
-export default function Actions({}: ActionsProps) {
-  const { data, isLoading } = useActions()
-  const [range, setRange] = useState(ranges[0])
+export default function Actions() {
+  const [actions, setActions] = useState<ActionRow[]>([])
 
-  const actions = useMemo(() => {
-    const list = data?.actions ?? []
-    if (!range.hours) {
-      return list
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const r = await fetch(`${API_BASE}/api/actions`)
+        const j = await r.json()
+        setActions(j.actions || [])
+      } catch { /* ignore */ }
     }
-    const cutoff = Date.now() - range.hours * 60 * 60 * 1000
-    return list.filter((action) => new Date(action.triggered_at).getTime() >= cutoff)
-  }, [data, range])
+    load()
+    const i = setInterval(load, 4000)
+    return () => clearInterval(i)
+  }, [])
+
+  const ok = (r: string) => ['resolved', 'success', 'fixed', 'ok'].includes((r || '').toLowerCase())
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="panel-title">Actions</p>
-          <p className="text-xs text-slate">
-            Remediations triggered by Cortex or dry-run recommendations.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {ranges.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              onClick={() => setRange(item)}
-              className={`rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-wide ${
-                range.label === item.label
-                  ? 'bg-ink text-white'
-                  : 'border border-haze text-slate'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+      <div>
+        <p className="panel-title">Remediation log</p>
+        <h2 className="mt-1 text-2xl font-display font-semibold text-ink">
+          Historical actions ({actions.length})
+        </h2>
+        <p className="mt-1 max-w-2xl text-sm text-slate">
+          Every remediation event in the engine's append-only log. Each row is
+          one past fix the engine can reuse when a similar incident fires.
+        </p>
       </div>
 
-      {isLoading ? (
-        <EmptyState
-          icon={Activity}
-          title="Loading action log"
-          subtitle="Fetching remediation history from Cortex."
-        />
-      ) : actions.length === 0 ? (
-        <EmptyState
-          icon={Activity}
-          title="No actions logged"
-          subtitle="No remediations found in the selected range."
-        />
+      {actions.length === 0 ? (
+        <div className="panel p-8 text-center text-sm text-slate">
+          <Activity className="mx-auto h-6 w-6 text-slate" />
+          <p className="mt-2 text-ink">No remediations seen yet.</p>
+          <p className="mt-1 text-xs">Load a sample from the Dashboard.</p>
+        </div>
       ) : (
-        <ActionLog actions={actions} />
+        <div className="panel p-4">
+          <table className="min-w-full font-mono text-[11px]">
+            <thead className="text-[10px] uppercase tracking-widest text-slate">
+              <tr>
+                <th className="px-3 py-2 text-left">incident</th>
+                <th className="px-3 py-2 text-left">service</th>
+                <th className="px-3 py-2 text-left">action</th>
+                <th className="px-3 py-2 text-left">outcome</th>
+                <th className="px-3 py-2 text-right">event #</th>
+              </tr>
+            </thead>
+            <tbody>
+              {actions.map((a, i) => (
+                <tr key={i} className="border-t border-haze/60 hover:bg-haze/30">
+                  <td className="px-3 py-2 font-semibold text-ink">{a.prediction_id}</td>
+                  <td className="px-3 py-2">{a.service}</td>
+                  <td className="px-3 py-2">
+                    <code className="rounded bg-moss/15 px-1.5 py-0.5 text-moss">{a.action_type}</code>
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className={`rounded px-1.5 py-0.5 ${ok(a.result) ? 'bg-moss/15 text-moss' : 'bg-haze/60 text-slate'}`}>
+                      {a.result || '—'}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-right text-slate">{Math.round(a.timestamp)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )
