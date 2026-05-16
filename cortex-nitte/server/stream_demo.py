@@ -2,10 +2,11 @@
 streaming: status updates, an LLM "thinking" narration, per-incident scoring,
 final aggregate scores, and an LLM reasoning explanation.
 
-The LLM narration is served by a local Ollama instance (default model
-`gemma4:e2b`, override via OLLAMA_MODEL). If Ollama is unreachable or the
-model isn't pulled, narration falls back to a deterministic local
-description so the demo still works.
+The LLM narration uses Groq's OpenAI-compatible chat-completions API.
+Configure via env: GROQ_API_KEY (required), GROQ_MODEL (default
+`llama-3.3-70b-versatile`), GROQ_API_URL (default Groq public endpoint).
+If Groq is unreachable or rate-limited, falls back to a smaller model
+and finally to a deterministic local narration so the demo still works.
 """
 from __future__ import annotations
 
@@ -67,94 +68,84 @@ _LAST_LLM_ERROR: str | None = None
 _LAST_LLM_MODEL: str | None = None
 
 
-def _ollama_stream_once(system: str, prompt: str, model: str) -> Iterator[str]:
-    """Single attempt at Ollama /api/chat streaming. Raises on transport
-    failure so the caller can decide whether to retry."""
-    url = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/") + "/api/chat"
+def _groq_stream_once(system: str, prompt: str, model: str) -> Iterator[str]:
+    """Single attempt at Groq's streaming chat completion (OpenAI-compatible).
+    Raises on transport / HTTP failure so the caller can decide whether to
+    retry or fall back to a smaller model."""
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY not set")
+    url = os.environ.get(
+        "GROQ_API_URL", "https://api.groq.com/openai/v1/chat/completions"
+    )
     body = json.dumps({
         "model": model,
         "stream": True,
-        "think": False,
+        "temperature": 0.4,
+        "max_tokens": 500,
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": prompt},
         ],
-        "options": {
-            "temperature": 0.4,
-            "num_predict": 500,
-        },
     }).encode("utf-8")
     req = urllib.request.Request(
         url,
         data=body,
         headers={
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "Accept": "application/x-ndjson",
+            "Accept": "text/event-stream",
             "User-Agent": "cortex-pce-demo/0.1",
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=300) as resp:
+    with urllib.request.urlopen(req, timeout=120) as resp:
         for raw in resp:
             line = raw.decode("utf-8", errors="ignore").strip()
-            if not line:
+            if not line or not line.startswith("data:"):
                 continue
+            payload = line[5:].strip()
+            if payload == "[DONE]":
+                return
             try:
-                obj = json.loads(line)
+                obj = json.loads(payload)
+                delta = (
+                    obj.get("choices", [{}])[0]
+                    .get("delta", {})
+                    .get("content", "")
+                )
+                if delta:
+                    yield delta
             except Exception:
                 continue
-            msg = obj.get("message") or {}
-            delta = msg.get("content") or ""
-            if delta:
-                yield delta
-            if obj.get("done"):
-                return
-
-
-def _ollama_available_models() -> set[str]:
-    """Best-effort: list models Ollama has actually pulled. Empty set on
-    failure (we then try the configured chain blindly)."""
-    url = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/") + "/api/tags"
-    try:
-        with urllib.request.urlopen(url, timeout=2) as resp:
-            data = json.loads(resp.read().decode("utf-8", errors="ignore"))
-        return {m.get("name") for m in data.get("models", []) if m.get("name")}
-    except Exception:
-        return set()
 
 
 def _model_chain() -> list[str]:
-    """Pick the primary local model from env, plus smaller fallbacks. Skip
-    any that Ollama doesn't have pulled so we don't waste a round-trip
-    discovering a 404."""
-    primary = os.environ.get("OLLAMA_MODEL", "gemma4:e2b")
-    candidates = [primary, "gemma4:e2b", "codegemma:2b"]
-    # de-dupe while preserving order
+    """Primary Groq model from env, plus smaller-quota fallbacks. Each model
+    on Groq has an independent TPD quota, so a 429 on the primary doesn't
+    block the demo."""
+    primary = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+    candidates = [primary, "llama-3.1-8b-instant", "llama-3.3-70b-versatile"]
     seen: set[str] = set()
     ordered: list[str] = []
     for m in candidates:
         if m and m not in seen:
             ordered.append(m)
             seen.add(m)
-    available = _ollama_available_models()
-    if available:
-        filtered = [m for m in ordered if m in available]
-        if filtered:
-            return filtered
     return ordered
 
 
 def _groq_stream(system: str, prompt: str) -> Iterator[str]:
-    """Yield text chunks from the local LLM (Ollama), with one fallback model
-    on transport failure. Kept under the old name so call sites don't change.
-    Records the last error in _LAST_LLM_ERROR and the model used in _LAST_LLM_MODEL."""
+    """Yield text chunks from Groq, retrying with the smaller-model fallback
+    chain on transient 4xx/5xx. Records the last error in _LAST_LLM_ERROR and
+    the model that produced output in _LAST_LLM_MODEL."""
     global _LAST_LLM_ERROR, _LAST_LLM_MODEL
     _LAST_LLM_ERROR = None
     _LAST_LLM_MODEL = None
     for model in _model_chain():
         try:
             yielded = False
-            for chunk in _ollama_stream_once(system, prompt, model):
+            for chunk in _groq_stream_once(system, prompt, model):
                 yielded = True
                 yield chunk
             if yielded:
@@ -168,15 +159,17 @@ def _groq_stream(system: str, prompt: str) -> Iterator[str]:
             except Exception:
                 detail = ""
             _LAST_LLM_ERROR = f"{model}: HTTP {e.code} {detail or e.reason}"
-            print(f"[ollama] {_LAST_LLM_ERROR}", flush=True)
-            if e.code not in (404, 408, 500, 502, 503, 504):
+            print(f"[groq] {_LAST_LLM_ERROR}", flush=True)
+            # Try fallback model on rate-limit / transient server errors,
+            # bail on hard 4xx (bad key, malformed request).
+            if e.code not in (408, 429, 500, 502, 503, 504):
                 return
         except (urllib.error.URLError, TimeoutError) as e:
             _LAST_LLM_ERROR = f"{model}: {type(e).__name__}: {e}"
-            print(f"[ollama] {_LAST_LLM_ERROR}", flush=True)
+            print(f"[groq] {_LAST_LLM_ERROR}", flush=True)
         except Exception as e:
             _LAST_LLM_ERROR = f"{model}: {type(e).__name__}: {e}"
-            print(f"[ollama] {_LAST_LLM_ERROR}", flush=True)
+            print(f"[groq] {_LAST_LLM_ERROR}", flush=True)
             return
         time.sleep(0.3)
 
